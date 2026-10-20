@@ -1,0 +1,15 @@
+{
+  "name": "blunder",
+  "version": "1.0.0",
+  "description": "B.Lunder — Centralised Louisenlund Campus Platform",
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "migrate": "cd server && npm run migrate",
+    "seed": "cd server && npm run seed",
+    "build:client": "cd client && npm run build"
+  },
+  "keywords": ["louisenlund", "blunder", "campus", "react", "express", "postgres"],
+  "author": "Louisenlund",
+  "license": "ISC"
+}
