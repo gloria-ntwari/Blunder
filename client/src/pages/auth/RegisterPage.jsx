@@ -19,31 +19,35 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [tempToken, setTempToken] = useState('');
+  const [tempToken, setTempToken]= useState('');
 
-  // Step 2 fields
   const [academicTrack, setAcademicTrack] = useState('IB');
   const [classYear, setClassYear] = useState('DP1');
-  const [mentorGroupId, setMentorGroupId] = useState('');
-  const [mentorGroups, setMentorGroups] = useState([]);
+  const [mentors, setMentors] = useState([]);
+  const [mentorId, setMentorId] = useState('');
   const [loadingMentors, setLoadingMentors] = useState(false);
 
   useEffect(() => {
     const classes = getClassesForTrack(academicTrack);
-    setClassYear(classes[0]?.value || 'DP1');
-    fetchMentorGroups(academicTrack);
+    const firstClass = classes[0]?.value || 'DP1';
+    setClassYear(firstClass);
+    fetchMentors(academicTrack, firstClass);
   }, [academicTrack]);
 
-  const fetchMentorGroups = async (track) => {
+  useEffect(() => {
+    fetchMentors(academicTrack, classYear);
+  }, [classYear]);
+
+  const fetchMentors = async (track, classYr) => {
     setLoadingMentors(true);
     try {
-      const res = await api.get(`/users/mentor-groups?academic_track=${track}`);
-      setMentorGroups(res.data);
-      if (res.data.length > 0) setMentorGroupId(res.data[0].id);
-      else setMentorGroupId('');
+      const res = await api.get(`/users/mentors?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
+      const list = res.data || [];
+      setMentors(list);
+      setMentorId(list.length > 0 ? list[0].id : '');
     } catch {
-      setMentorGroups([]);
+      setMentors([]);
+      setMentorId('');
     } finally {
       setLoadingMentors(false);
     }
@@ -57,8 +61,9 @@ export default function RegisterPage() {
 
   const handleStep1Submit = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) { toast.error('Passwords do not match'); return; }
     if (password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
+    if (!/[a-zA-Z]/.test(password)) { toast.error('Password must contain at least one letter'); return; }
+    if (!/[0-9]/.test(password)) { toast.error('Password must contain at least one number'); return; }
     setLoading(true);
     try {
       const res = await api.post('/auth/register/step1', { full_name: fullName, email, password });
@@ -80,7 +85,7 @@ export default function RegisterPage() {
         tempToken,
         academic_track: academicTrack,
         class_year: classYear,
-        mentor_group_id: mentorGroupId || null
+        mentor_id: mentorId || null
       });
       localStorage.setItem('blunder_access_token', res.data.accessToken);
       localStorage.setItem('blunder_refresh_token', res.data.refreshToken);
@@ -121,12 +126,11 @@ export default function RegisterPage() {
         {/* Tagline */}
         <div className="relative z-10 my-auto py-12">
           <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight md:leading-[1.15]">
-            {t('auth.tagline1', 'Your school.')}<br />
-            {t('auth.tagline2', 'Your people.')}<br />
-            <span className="text-[#e4f2fe]">{t('auth.tagline3', 'All in one place.')}</span>
+            Own Your Campus<br />
+            <span className="text-[#e4f2fe]">Life From Here</span>
           </h2>
           <p className="mt-4 text-sm md:text-base text-white/80 max-w-md font-light leading-relaxed">
-            Join the student community. Get instant snack alerts, school-wide news, calendar deadlines and lost & found items.
+            The official platform for staying connected with your campus — from announcements to daily life.
           </p>
 
           {/* Step indicator */}
@@ -161,10 +165,7 @@ export default function RegisterPage() {
           {step === 1 ? (
             <>
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-[#e4f2fe] text-[#2383c9] flex items-center justify-center mb-5">
-                  <User className="w-6 h-6 stroke-[1.75]" />
-                </div>
-                <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a2e] tracking-tight">
+                <h2 className="text-2xl md:text-3xl font-semibold text-[#1a1a2e] tracking-tight">
                   {t('auth.step1Title', 'Create your account')}
                 </h2>
                 <p className="mt-1.5 text-xs md:text-sm text-gray-500">
@@ -215,19 +216,7 @@ export default function RegisterPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                    {t('auth.confirmPassword', 'Confirm password')}
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat your password"
-                    className="w-full bg-white text-xs text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all placeholder:text-gray-400"
-                  />
-                </div>
+
 
                 <button
                   type="submit"
@@ -301,26 +290,26 @@ export default function RegisterPage() {
                   </select>
                 </div>
 
-                {/* Mentor Group */}
+                {/* Mentor */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                    {t('auth.mentorGroup', '3. Mentor Group')}
+                    {t('auth.mentor', '3. Select Your Mentor')}
                   </label>
                   {loadingMentors ? (
                     <div className="text-xs text-gray-400 py-2">Loading mentors...</div>
-                  ) : mentorGroups.length > 0 ? (
+                  ) : mentors.length > 0 ? (
                     <select
-                      value={mentorGroupId}
-                      onChange={(e) => setMentorGroupId(e.target.value)}
+                      value={mentorId}
+                      onChange={(e) => setMentorId(e.target.value)}
                       className="w-full bg-white text-xs text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all"
                     >
-                      {mentorGroups.map((g) => (
-                        <option key={g.id} value={g.id}>{g.mentor_name}'s Group</option>
+                      {mentors.map((m) => (
+                        <option key={m.id} value={m.id}>{m.full_name}</option>
                       ))}
                     </select>
                   ) : (
                     <div className="bg-[#e4f2fe]/40 border border-[#1a1a2e]/10 p-3 rounded-lg text-xs text-gray-600">
-                      No mentor group registered for {academicTrack} yet. You can be assigned later by your mentor.
+                      No mentor assigned for {academicTrack} / {classYear} yet. You can be assigned later.
                     </div>
                   )}
                 </div>

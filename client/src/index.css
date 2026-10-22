@@ -25,6 +25,8 @@
 /* Global */
 *, *::before, *::after { box-sizing: border-box; }
 
+button { cursor: pointer; }
+
 body {
   font-family: var(--font-sans);
   background-color: var(--color-bg-main);

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:5000/api',
   withCredentials: true,
 });
 
@@ -55,8 +55,10 @@ api.interceptors.response.use(
       } catch (err) {
         processQueue(err, null);
         localStorage.removeItem('blunder_access_token');
-        localStorage.removeItem('blunder_refresh_token');
-        window.location.href = '/login';
+        const authPaths = ['/login', '/register', '/verify-otp', '/set-password', '/forgot-password'];
+        if (!authPaths.includes(window.location.pathname)) {
+          window.location.href = '/login';
+        }
         return Promise.reject(err);
       } finally {
         isRefreshing = false;

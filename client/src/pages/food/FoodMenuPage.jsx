@@ -314,7 +314,7 @@ export default function FoodMenuPage() {
                     {meal.meal_type}
                   </span>
                   {meal.is_special_snack && (
-                    <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-[#f97316] text-white shadow-xs">
+                    <span className="px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-[#f97316] text-white shadow-xs">
                       Special ⭐
                     </span>
                   )}

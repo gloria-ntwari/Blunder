@@ -57,6 +57,7 @@ export const getUsers = async (req, res, next) => {
     const result = await query(
       `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
               u.class_year, u.avatar_url, u.is_verified, u.is_active, u.created_at,
+              u.mentor_group_id,
               concat(mg_mentor.full_name, '''s Group') as mentor_group_name
        FROM users u
        LEFT JOIN mentor_groups mg ON u.mentor_group_id = mg.id
@@ -102,14 +103,14 @@ export const updateUser = async (req, res, next) => {
       `UPDATE users SET
         full_name = COALESCE($1, full_name),
         role = COALESCE($2, role),
-        admin_type = COALESCE($3, admin_type),
-        academic_track = COALESCE($4, academic_track),
-        class_year = COALESCE($5, class_year),
-        mentor_group_id = COALESCE($6, mentor_group_id),
+        admin_type = $3,
+        academic_track = $4,
+        class_year = $5,
+        mentor_group_id = $6,
         is_active = COALESCE($7, is_active),
         updated_at = NOW()
        WHERE id = $8`,
-      [full_name, role, admin_type, academic_track, class_year, mentor_group_id, is_active, req.params.id]
+      [full_name, role, admin_type ?? null, academic_track ?? null, class_year ?? null, mentor_group_id ?? null, is_active, req.params.id]
     );
     res.json({ message: 'User updated' });
   } catch (err) { next(err); }
@@ -146,6 +147,37 @@ export const getMentorGroups = async (req, res, next) => {
        LEFT JOIN users students ON students.mentor_group_id = mg.id
        ${where}
        GROUP BY mg.id, mg.academic_track, u.full_name
+       ORDER BY u.full_name`,
+      params
+    );
+    res.json(result.rows);
+  } catch (err) { next(err); }
+};
+
+// ── GET /api/users/mentors?academic_track=IB&class_year=DP1 ───────────────────
+// Returns mentors (role='mentor') who have a mentor_group for the given academic_track.
+// class_year is ignored here because mentor_groups are track-scoped only — we return
+// all mentors in the track and let the UI label them for the user to pick from.
+export const getMentors = async (req, res, next) => {
+  try {
+    const { academic_track } = req.query;
+    const params = [];
+    const conditions = [`u.role = 'mentor'`];
+
+    if (academic_track) {
+      params.push(academic_track);
+      conditions.push(`mg.academic_track = $${params.length}`);
+    }
+
+    const where = `WHERE ${conditions.join(' AND ')}`;
+
+    const result = await query(
+      `SELECT u.id AS mentor_user_id, u.full_name, u.email, u.academic_track,
+              mg.id AS mentor_group_id,
+              concat(u.full_name, '''s Group') AS group_name
+       FROM users u
+       JOIN mentor_groups mg ON mg.mentor_user_id = u.id
+       ${where}
        ORDER BY u.full_name`,
       params
     );

@@ -99,7 +99,7 @@ export default function Sidebar() {
                   <span>{t('nav.announcements', 'Announcements')}</span>
                 </div>
                 {unreadCount > 0 && (
-                  <span className="px-1.5 py-0.5 text-[11px] font-bold bg-[#f97316] text-white rounded-full">
+                  <span className="flex items-center justify-center font-bold bg-[#f97316] text-white rounded-full h-4 w-4 text-[11px]">
                     {unreadCount}
                   </span>
                 )}

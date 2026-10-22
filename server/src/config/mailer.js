@@ -36,18 +36,23 @@ export const sendInviteEmail = async (email, setupToken, role = 'admin') => {
     to: email,
     subject: `Your B.Lunder ${roleLabel} Invitation`,
     html: `
-      <div style="font-family: sans-serif; max-width: 480px; margin: auto; padding: 32px; background: #f8fafb; border-radius: 12px;">
-        <h2 style="color: #1a2b49;">Welcome to B.Lunder 🎓</h2>
-        <p style="color: #1a1a2e;">You have been invited as a <strong>${roleLabel}</strong> on the Louisenlund campus platform.</p>
-        <p style="color: #1a1a2e;">Click the button below to set up your password and activate your account:</p>
-        <div style="text-align: center; padding: 20px 0;">
-          <a href="${setupLink}" style="display: inline-block; padding: 14px 32px; background: #1a2b49; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 8px;">Set Up My Account</a>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: auto; padding: 36px; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #1a2b49; margin: 0 0 8px 0; font-size: 24px;">Welcome to B.Lunder 🎓</h2>
+          <p style="color: #64748b; font-size: 13px; margin: 0; text-transform: uppercase; letter-spacing: 1px;">The Louisenlund Community</p>
         </div>
-        <p style="color: #6b7280; font-size: 13px;">Or copy and paste this link into your browser:</p>
-        <p style="color: #2383c9; font-size: 12px; word-break: break-all;">${setupLink}</p>
-        <p style="color: #6b7280; font-size: 13px;">This link expires in <strong>24 hours</strong>. Do not share it with anyone.</p>
-        <hr style="border: none; border-top: 1px solid #e4f2fe; margin: 24px 0;" />
-        <p style="color: #6b7280; font-size: 12px;">B.Lunder — A little closer. Every day. | Stiftung Louisenlund</p>
+        <p style="color: #1a1a2e; font-size: 15px; line-height: 1.5;">You have been invited as a <strong>${roleLabel}</strong> on the Louisenlund campus platform.</p>
+        <p style="color: #1a1a2e; font-size: 15px; line-height: 1.5;">Click the button below to set up your password and complete your registration:</p>
+        <div style="text-align: center; padding: 24px 0 20px 0;">
+          <a href="${setupLink}" style="display: inline-block; padding: 14px 36px; background: #1a2b49; color: #ffffff; font-weight: 700; font-size: 15px; text-decoration: none; border-radius: 8px;">Set Up My Account</a>
+        </div>
+        <p style="color: #64748b; font-size: 13px; margin-top: 16px;">If the button doesn't work, copy and paste this link into your browser:</p>
+        <p style="color: #2383c9; font-size: 12px; word-break: break-all; margin-top: 4px;"><a href="${setupLink}" style="color: #2383c9;">${setupLink}</a></p>
+        <div style="margin-top: 24px; padding: 12px 16px; background: #f8fafc; border-radius: 8px; border-left: 3px solid #2383c9;">
+          <p style="color: #64748b; font-size: 12px; margin: 0;">This invitation link will expire in <strong>24 hours</strong>. Do not share it with anyone.</p>
+        </div>
+        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 28px 0 20px 0;" />
+        <p style="color: #94a3b8; font-size: 11px; margin: 0; text-align: center;">B.Lunder — A little closer. Every day. | Stiftung Louisenlund</p>
       </div>
     `,
   });

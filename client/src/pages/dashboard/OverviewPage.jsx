@@ -28,6 +28,7 @@ export default function OverviewPage() {
   const [todayMenu, setTodayMenu] = useState([]);
   const [events, setEvents] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
+  const [lostFoundCount, setLostFoundCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
 
@@ -38,17 +39,19 @@ export default function OverviewPage() {
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [annRes, menuRes, eventRes, deadRes] = await Promise.allSettled([
+      const [annRes, menuRes, eventRes, deadRes, lfRes] = await Promise.allSettled([
         api.get('/announcements?limit=4'),
         api.get('/food/today'),
         api.get('/events?limit=4'),
-        api.get('/deadlines')
+        api.get('/deadlines'),
+        api.get('/lost-found?status=unclaimed')
       ]);
 
       if (annRes.status === 'fulfilled') setAnnouncements(annRes.value.data.announcements || []);
       if (menuRes.status === 'fulfilled') setTodayMenu(menuRes.value.data || []);
       if (eventRes.status === 'fulfilled') setEvents(eventRes.value.data || []);
       if (deadRes.status === 'fulfilled') setDeadlines(deadRes.value.data || []);
+      if (lfRes.status === 'fulfilled') setLostFoundCount((lfRes.value.data.items || []).length);
     } catch (err) {
       console.error(err);
     } finally {
@@ -182,22 +185,22 @@ export default function OverviewPage() {
           </div>
         </Link>
 
-        {/* Card 4: Campus Activities */}
+        {/* Card 4: Lost & Found */}
         <Link
           to="/lost-found"
           className="bg-white p-5 rounded-xl border border-slate-200/70 shadow-xs hover:border-purple-300 hover:shadow-sm transition-all group"
         >
           <div className="flex items-start justify-between">
             <p className="text-[14px] font-medium leading-[20px] text-[#64748b]">
-              {t('dashboard.houseActivities', 'Campus Activities')}
+              {t('dashboard.lostFound', 'Lost & Found')}
             </p>
             <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-              <Users className="w-4 h-4" />
+              <Search className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-2">
             <p className="text-[30px] font-bold text-[#0f172a] leading-none">
-              01
+              {lostFoundCount}
             </p>
           </div>
         </Link>
@@ -215,7 +218,7 @@ export default function OverviewPage() {
           <div className="flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-[#e4f2fe]" />
             <span className="text-[10px] md:text-xs font-semibold tracking-widest uppercase text-white/80">
-              YOUR PEOPLE. YOUR PLACE.
+              WHERE CAMPUS LIFE CLICKS.
             </span>
           </div>
 
@@ -229,12 +232,17 @@ export default function OverviewPage() {
             <span className="px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-md text-[11px] font-medium text-white border border-white/20">
               {user?.mentor_group_name || 'Louisenlund Campus'}
             </span>
-            <span className="px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-md text-[11px] font-medium text-white border border-white/20">
-              {user?.class_year || 'Year 12'}
-            </span>
-            <span className="px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-md text-[11px] font-medium text-white border border-white/20">
-              {user?.academic_track || 'IB Diploma'}
-            </span>
+{user?.class_year && (
+  <span className="px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-md text-[11px] font-medium text-white border border-white/20">
+    {user.class_year}
+  </span>
+)}
+{user?.academic_track && (
+  <span className="px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-md text-[11px] font-medium text-white border border-white/20">
+    {user.academic_track}
+  </span>
+)}
+
           </div>
         </div>
       </div>

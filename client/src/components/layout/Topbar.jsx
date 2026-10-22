@@ -80,7 +80,7 @@ export default function Topbar() {
         <div className="relative" ref={langRef}>
           <button
             onClick={() => setShowLangMenu(!showLangMenu)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
             title="Switch Language"
           >
             <Globe className="w-4 h-4 text-slate-500" />
@@ -116,7 +116,7 @@ export default function Topbar() {
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:rounded-full hover:bg-slate-100 transition-all relative"
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:rounded-full hover:bg-slate-100 transition-all relative cursor-pointer"
             title="Notifications"
           >
             <Bell className="w-4 h-4" />

@@ -24,7 +24,8 @@ export const registerStep1 = async (req, res, next) => {
     if (!full_name || !email || !password)
       return res.status(400).json({ message: 'full_name, email and password are required' });
 
-    const exists = await query('SELECT id FROM users WHERE email = $1', [email]);
+    const normalizedEmail = email.trim().toLowerCase();
+    const exists = await query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
     if (exists.rows.length)
       return res.status(409).json({ message: 'Email already registered' });
 
@@ -33,7 +34,7 @@ export const registerStep1 = async (req, res, next) => {
     const result = await query(
       `INSERT INTO users (full_name, email, password_hash, role, is_verified)
        VALUES ($1, $2, $3, 'student', FALSE) RETURNING id`,
-      [full_name, email, hash]
+      [full_name.trim(), normalizedEmail, hash]
     );
 
     const userId = result.rows[0].id;
@@ -96,14 +97,21 @@ export const login = async (req, res, next) => {
     if (!email || !password)
       return res.status(400).json({ message: 'Email and password required' });
 
+    const normalizedEmail = email.trim().toLowerCase();
     const result = await query(
-      'SELECT * FROM users WHERE email = $1 AND is_active = TRUE',
-      [email]
+      'SELECT * FROM users WHERE LOWER(email) = $1 AND is_active = TRUE',
+      [normalizedEmail]
     );
     const user = result.rows[0];
 
-    if (!user || !user.password_hash)
+    if (!user)
       return res.status(401).json({ message: 'Invalid credentials' });
+
+    if (!user.password_hash) {
+      return res.status(403).json({
+        message: 'Your account was invited, but your password is not set yet. Please check your invitation email to set your password, or use "Forgot password".'
+      });
+    }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ message: 'Invalid credentials' });
@@ -177,13 +185,16 @@ export const inviteUser = async (req, res, next) => {
     if (!['admin', 'school_leader', 'mentor', 'student'].includes(role))
       return res.status(400).json({ message: 'Role must be admin, school_leader, mentor, or student' });
 
+    email = email.trim().toLowerCase();
+    full_name = full_name.trim();
+
     // Admins (non-school-leader) don't belong to any academic track or class
     if (role === 'admin') {
       academic_track = null;
       class_year = null;
     }
 
-    const exists = await query('SELECT id, is_verified FROM users WHERE email = $1', [email]);
+    const exists = await query('SELECT id, is_verified FROM users WHERE LOWER(email) = $1', [email]);
     let userId;
 
     if (exists.rows.length) {
@@ -221,23 +232,23 @@ export const inviteUser = async (req, res, next) => {
       }
     }
 
-    // Generate OTP (for record-keeping), then immediately mark as used
+    // Generate OTP (valid for 24h, allows manual entry at /verify-otp if preferred)
     const otp = generateOtp();
     const otpExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    await query(`UPDATE otps SET used = TRUE WHERE email = $1 AND purpose = 'invite'`, [email]);
+    await query(`UPDATE otps SET used = TRUE WHERE LOWER(email) = $1 AND purpose = 'invite'`, [email]);
     await query(
-      `INSERT INTO otps (email, code, purpose, expires_at, used) VALUES ($1, $2, 'invite', $3, TRUE)`,
+      `INSERT INTO otps (email, code, purpose, expires_at, used) VALUES ($1, $2, 'invite', $3, FALSE)`,
       [email, otp, otpExpiresAt]
     );
 
-    // Generate a setup token (24h) so the user can go directly to set-password
+    // Generate a setup token (24h) so the user can click directly to set-password
     const setupToken = jwt.sign(
       { userId, step: 'set_password' },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Try sending email with setup link
+    // Try sending email with direct setup link
     let emailSent = false;
     let emailError = null;
     try {
@@ -263,10 +274,12 @@ export const inviteUser = async (req, res, next) => {
 export const verifyOtp = async (req, res, next) => {
   try {
     const { email, code } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
+    const cleanCode = code?.trim();
 
     const result = await query(
-      `SELECT * FROM otps WHERE email = $1 AND code = $2 AND used = FALSE AND expires_at > NOW()`,
-      [email, code]
+      `SELECT * FROM otps WHERE LOWER(email) = $1 AND code = $2 AND used = FALSE AND expires_at > NOW()`,
+      [normalizedEmail, cleanCode]
     );
 
     if (!result.rows.length)
@@ -275,11 +288,14 @@ export const verifyOtp = async (req, res, next) => {
     await query('UPDATE otps SET used = TRUE WHERE id = $1', [result.rows[0].id]);
 
     // Issue a temp token to allow set-password
-    const user = await query('SELECT id FROM users WHERE email = $1', [email]);
+    const user = await query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
+    if (!user.rows.length)
+      return res.status(404).json({ message: 'User not found' });
+
     const tempToken = jwt.sign(
       { userId: user.rows[0].id, step: 'set_password' },
       process.env.JWT_SECRET,
-      { expiresIn: '20m' }
+      { expiresIn: '24h' }
     );
 
     res.json({ message: 'OTP verified', tempToken });
@@ -315,16 +331,17 @@ export const setPassword = async (req, res, next) => {
 export const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
-    const user = await query('SELECT id FROM users WHERE email = $1', [email]);
+    const normalizedEmail = email?.trim().toLowerCase();
+    const user = await query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
     // Always respond the same to prevent email enumeration
     if (user.rows.length) {
       const otp = generateOtp();
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
       await query(
         `INSERT INTO otps (email, code, purpose, expires_at) VALUES ($1, $2, 'reset', $3)`,
-        [email, otp, expiresAt]
+        [normalizedEmail, otp, expiresAt]
       );
-      await sendPasswordResetEmail(email, otp);
+      await sendPasswordResetEmail(normalizedEmail, otp);
     }
     res.json({ message: 'If that email is registered, a reset code has been sent.' });
   } catch (err) { next(err); }
@@ -334,10 +351,11 @@ export const forgotPassword = async (req, res, next) => {
 export const resetPassword = async (req, res, next) => {
   try {
     const { email, code, newPassword } = req.body;
+    const normalizedEmail = email?.trim().toLowerCase();
 
     const result = await query(
-      `SELECT * FROM otps WHERE email = $1 AND code = $2 AND purpose = 'reset' AND used = FALSE AND expires_at > NOW()`,
-      [email, code]
+      `SELECT * FROM otps WHERE LOWER(email) = $1 AND code = $2 AND purpose = 'reset' AND used = FALSE AND expires_at > NOW()`,
+      [normalizedEmail, code]
     );
     if (!result.rows.length)
       return res.status(400).json({ message: 'Invalid or expired reset code' });
@@ -345,7 +363,7 @@ export const resetPassword = async (req, res, next) => {
     await query('UPDATE otps SET used = TRUE WHERE id = $1', [result.rows[0].id]);
 
     const hash = await bcrypt.hash(newPassword, 12);
-    await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2', [hash, email]);
+    await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE LOWER(email) = $2', [hash, normalizedEmail]);
 
     res.json({ message: 'Password reset successful. You can now log in.' });
   } catch (err) { next(err); }

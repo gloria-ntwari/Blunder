@@ -7,6 +7,7 @@ import {
   Plus,
   X,
   Trash2,
+  Edit2,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
@@ -24,17 +25,59 @@ export default function AnnouncementsPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(true);
 
+  // Create / Edit modal (shared)
   const [showModal, setShowModal] = useState(false);
+  const [editingAnn, setEditingAnn] = useState(null); // null = create, object = edit
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [scope, setScope] = useState('school_wide');
   const [targetTrack, setTargetTrack] = useState(user?.academic_track || 'IB');
   const [targetClass, setTargetClass] = useState('');
+  const [targetMentorId, setTargetMentorId] = useState('');
+  const [mentorsForClass, setMentorsForClass] = useState([]);
+  const [loadingMentors, setLoadingMentors] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [isUrgent, setIsUrgent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const canPost = user && ['super_admin', 'admin', 'school_leader', 'mentor'].includes(user.role);
+
+  const fetchMentorsForClass = async (track, classYr) => {
+    if (!track || !classYr) { setMentorsForClass([]); setTargetMentorId(''); return; }
+    setLoadingMentors(true);
+    try {
+      const res = await api.get(`/users/mentors?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
+      setMentorsForClass(res.data || []);
+      setTargetMentorId('');
+    } catch {
+      setMentorsForClass([]);
+    } finally {
+      setLoadingMentors(false);
+    }
+  };
+
+  const openCreateModal = () => {
+    setEditingAnn(null);
+    setTitle(''); setBody(''); setScope('school_wide');
+    setTargetTrack(user?.academic_track || 'IB'); setTargetClass('');
+    setTargetMentorId(''); setMentorsForClass([]);
+    setIsPinned(false); setIsUrgent(false);
+    setShowModal(true);
+  };
+
+  const openEditModal = (ann) => {
+    setEditingAnn(ann);
+    setTitle(ann.title || '');
+    setBody(ann.body || '');
+    setScope(ann.scope || 'school_wide');
+    setTargetTrack(ann.target_track || user?.academic_track || 'IB');
+    setTargetClass(ann.target_class || '');
+    setTargetMentorId('');
+    setMentorsForClass([]);
+    setIsPinned(ann.is_pinned || false);
+    setIsUrgent(ann.is_urgent || false);
+    setShowModal(true);
+  };
 
   useEffect(() => { fetchAnnouncements(); }, []);
 
@@ -50,25 +93,34 @@ export default function AnnouncementsPage() {
     }
   };
 
-  const handleCreateAnnouncement = async (e) => {
+  const handleSubmitAnnouncement = async (e) => {
     e.preventDefault();
     if (!title || !body) return;
     setSubmitting(true);
+    const payload = {
+      title, body, scope,
+      target_track: scope === 'academic_track' ? targetTrack : null,
+      target_class: scope === 'academic_track' && targetClass ? targetClass : null,
+      target_mentor_id: scope === 'academic_track' && targetClass && targetMentorId ? targetMentorId : null,
+      target_mentor_group_id: scope === 'mentor_group' ? user?.mentor_group_id : null,
+      is_pinned: isPinned,
+      is_urgent: isUrgent,
+    };
     try {
-      await api.post('/announcements', {
-        title, body, scope,
-        target_track: scope === 'academic_track' ? targetTrack : null,
-        target_class: scope === 'academic_track' && targetClass ? targetClass : null,
-        target_mentor_group_id: scope === 'mentor_group' ? user?.mentor_group_id : null,
-        is_pinned: isPinned,
-        is_urgent: isUrgent,
-      });
-      toast.success('Announcement broadcasted!');
+      if (editingAnn) {
+        await api.put(`/announcements/${editingAnn.id}`, payload);
+        toast.success('Announcement updated!');
+      } else {
+        await api.post('/announcements', payload);
+        toast.success('Announcement broadcasted!');
+      }
       setShowModal(false);
-      setTitle(''); setBody(''); setIsPinned(false); setIsUrgent(false); setTargetClass('');
+      setEditingAnn(null);
+      setTitle(''); setBody(''); setIsPinned(false); setIsUrgent(false);
+      setTargetClass(''); setTargetMentorId(''); setMentorsForClass([]);
       fetchAnnouncements();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to post announcement');
+      toast.error(err.response?.data?.message || (editingAnn ? 'Failed to update' : 'Failed to post announcement'));
     } finally {
       setSubmitting(false);
     }
@@ -107,7 +159,7 @@ export default function AnnouncementsPage() {
 
         {canPost && (
           <button
-            onClick={() => setShowModal(true)}
+            onClick={openCreateModal}
             className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -162,11 +214,11 @@ export default function AnnouncementsPage() {
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e4f2fe] text-[#2383c9]">
+                  <span className="px-2.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-[#e4f2fe] text-[#2383c9]">
                     {ann.scope.replace('_', ' ')}
                   </span>
                   {ann.target_track && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-600">
+                    <span className="px-2.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-600">
                       {ann.target_track} {ann.target_class ? `• ${ann.target_class}` : ''}
                     </span>
                   )}
@@ -189,12 +241,22 @@ export default function AnnouncementsPage() {
                     {ann.created_at ? format(new Date(ann.created_at), 'd MMM yyyy, HH:mm') : ''}
                   </span>
                   {(user?.id === ann.created_by || user?.role === 'super_admin') && (
-                    <button
-                      onClick={() => handleDelete(ann.id)}
-                      className="text-[#64748b] hover:text-red-500 p-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEditModal(ann)}
+                        className="p-1.5 text-[#64748b] hover:text-[#2383c9] hover:bg-[#e4f2fe] rounded-lg transition-colors"
+                        title="Edit announcement"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(ann.id)}
+                        className="p-1.5 text-[#64748b] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete announcement"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -232,7 +294,7 @@ export default function AnnouncementsPage() {
                 <div className="w-8 h-8 rounded-lg bg-[#e4f2fe] text-[#2383c9] flex items-center justify-center shrink-0">
                   <Bell className="w-4 h-4" />
                 </div>
-                <h3 className="font-bold text-[18px] text-[#0f172a]">New Announcement</h3>
+                <h3 className="font-bold text-[18px] text-[#0f172a]">{editingAnn ? 'Edit Announcement' : 'New Announcement'}</h3>
               </div>
               <button
                 onClick={() => setShowModal(false)}
@@ -242,7 +304,7 @@ export default function AnnouncementsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreateAnnouncement} className="space-y-4">
+            <form onSubmit={handleSubmitAnnouncement} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">Title</label>
                 <input
@@ -279,6 +341,8 @@ export default function AnnouncementsPage() {
                       onChange={(e) => {
                         setTargetTrack(e.target.value);
                         setTargetClass('');
+                        setMentorsForClass([]);
+                        setTargetMentorId('');
                       }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors"
                     >
@@ -292,17 +356,44 @@ export default function AnnouncementsPage() {
                     <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">Target Class / Year Level</label>
                     <select
                       value={targetClass}
-                      onChange={(e) => setTargetClass(e.target.value)}
+                      onChange={(e) => {
+                        const cls = e.target.value;
+                        setTargetClass(cls);
+                        if (cls) fetchMentorsForClass(targetTrack, cls);
+                        else { setMentorsForClass([]); setTargetMentorId(''); }
+                      }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors"
                     >
                       <option value="">All Classes in {targetTrack}</option>
                       {getClassesForTrack(targetTrack).map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {c.label}
-                        </option>
+                        <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
                   </div>
+
+                  {targetClass && (
+                    <div>
+                      <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">Mentor Group</label>
+                      {loadingMentors ? (
+                        <div className="text-xs text-[#64748b] py-1">Loading mentor groups...</div>
+                      ) : mentorsForClass.length > 0 ? (
+                        <select
+                          value={targetMentorId}
+                          onChange={(e) => setTargetMentorId(e.target.value)}
+                          className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors"
+                        >
+                          <option value="">All mentor groups in {targetClass}</option>
+                          {mentorsForClass.map((m) => (
+                            <option key={m.id} value={m.id}>{m.full_name}'s Group</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="text-xs text-[#64748b] p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                          No mentor groups found for {targetTrack} / {targetClass}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -354,7 +445,7 @@ export default function AnnouncementsPage() {
                   disabled={submitting}
                   className="px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60"
                 >
-                  {submitting ? 'Broadcasting...' : 'Publish Announcement'}
+                  {submitting ? (editingAnn ? 'Saving...' : 'Broadcasting...') : (editingAnn ? 'Save Changes' : 'Publish Announcement')}
                 </button>
               </div>
             </form>

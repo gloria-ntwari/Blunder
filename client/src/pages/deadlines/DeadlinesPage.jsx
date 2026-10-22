@@ -30,9 +30,26 @@ export default function DeadlinesPage() {
   const [type, setType] = useState('personal');
   const [track, setTrack] = useState(user?.academic_track || 'IB');
   const [targetClass, setTargetClass] = useState('');
+  const [targetMentorId, setTargetMentorId] = useState('');
+  const [mentorsForClass, setMentorsForClass] = useState([]);
+  const [loadingMentors, setLoadingMentors] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const isAdmin = user && ['super_admin', 'admin', 'school_leader'].includes(user.role);
+
+  const fetchMentorsForClass = async (tr, classYr) => {
+    if (!tr || !classYr) { setMentorsForClass([]); setTargetMentorId(''); return; }
+    setLoadingMentors(true);
+    try {
+      const res = await api.get(`/users/mentors?academic_track=${tr}&class_year=${encodeURIComponent(classYr)}`);
+      setMentorsForClass(res.data || []);
+      setTargetMentorId('');
+    } catch {
+      setMentorsForClass([]);
+    } finally {
+      setLoadingMentors(false);
+    }
+  };
 
   useEffect(() => { fetchDeadlines(); }, []);
 
@@ -59,10 +76,11 @@ export default function DeadlinesPage() {
         type: isAdmin ? type : 'personal',
         track: type === 'academic' ? track : null,
         target_class: type === 'academic' && targetClass ? targetClass : null,
+        target_mentor_id: type === 'academic' && targetClass && targetMentorId ? targetMentorId : null,
       });
       toast.success('Deadline saved!');
       setShowModal(false);
-      setTitle(''); setDescription(''); setTargetClass('');
+      setTitle(''); setDescription(''); setTargetClass(''); setTargetMentorId(''); setMentorsForClass([]);
       fetchDeadlines();
     } catch (err) {
       toast.error('Could not create deadline');
@@ -247,6 +265,8 @@ export default function DeadlinesPage() {
                       onChange={(e) => {
                         setTrack(e.target.value);
                         setTargetClass('');
+                        setMentorsForClass([]);
+                        setTargetMentorId('');
                       }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                     >
@@ -259,17 +279,44 @@ export default function DeadlinesPage() {
                     <label className="block text-xs font-semibold text-[#0f172a] mb-1">Class / Year Level</label>
                     <select
                       value={targetClass}
-                      onChange={(e) => setTargetClass(e.target.value)}
+                      onChange={(e) => {
+                        const cls = e.target.value;
+                        setTargetClass(cls);
+                        if (cls) fetchMentorsForClass(track, cls);
+                        else { setMentorsForClass([]); setTargetMentorId(''); }
+                      }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                     >
                       <option value="">All Classes in {track}</option>
                       {getClassesForTrack(track).map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {c.label}
-                        </option>
+                        <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
                   </div>
+
+                  {targetClass && (
+                    <div>
+                      <label className="block text-xs font-semibold text-[#0f172a] mb-1">Mentor Group</label>
+                      {loadingMentors ? (
+                        <div className="text-xs text-[#64748b] py-1">Loading mentor groups...</div>
+                      ) : mentorsForClass.length > 0 ? (
+                        <select
+                          value={targetMentorId}
+                          onChange={(e) => setTargetMentorId(e.target.value)}
+                          className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
+                        >
+                          <option value="">All mentor groups in {targetClass}</option>
+                          {mentorsForClass.map((m) => (
+                            <option key={m.id} value={m.id}>{m.full_name}'s Group</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="text-xs text-[#64748b] p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                          No mentor groups found for {track} / {targetClass}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

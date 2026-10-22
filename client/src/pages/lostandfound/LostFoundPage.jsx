@@ -10,6 +10,7 @@ import {
   Send,
   X,
   Trash2,
+  Edit2,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
@@ -26,12 +27,15 @@ export default function LostFoundPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [loading, setLoading] = useState(true);
 
+  // Detail modal
   const [selectedItem, setSelectedItem] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
+  // Report / Edit modal (shared)
   const [showReportModal, setShowReportModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null); // null = create, object = edit
   const [itemName, setItemName] = useState('');
   const [description, setDescription] = useState('');
   const [locationFound, setLocationFound] = useState('');
@@ -39,6 +43,8 @@ export default function LostFoundPage() {
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [uploading, setUploading] = useState(false);
+
+  const canManage = user && ['super_admin', 'admin'].includes(user.role);
 
   useEffect(() => { fetchItems(); }, [filterStatus]);
 
@@ -62,6 +68,38 @@ export default function LostFoundPage() {
     } catch {
       setSelectedItem(item);
       setComments([]);
+    }
+  };
+
+  const openReportModal = () => {
+    setEditingItem(null);
+    setItemName(''); setDescription(''); setLocationFound('');
+    setDateFound(format(new Date(), 'yyyy-MM-dd'));
+    setPhoto(null); setPhotoPreview('');
+    setShowReportModal(true);
+  };
+
+  const openEditModal = (item, e) => {
+    e.stopPropagation();
+    setEditingItem(item);
+    setItemName(item.item_name || '');
+    setDescription(item.description || '');
+    setLocationFound(item.location_found || '');
+    setDateFound(item.date_found ? format(new Date(item.date_found), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+    setPhoto(null);
+    setPhotoPreview(item.photo_url || '');
+    setShowReportModal(true);
+  };
+
+  const handleDelete = async (id, e) => {
+    e.stopPropagation();
+    if (!window.confirm('Delete this lost & found item?')) return;
+    try {
+      await api.delete(`/lost-found/${id}`);
+      toast.success('Item deleted');
+      fetchItems();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not delete item');
     }
   };
 
@@ -94,7 +132,7 @@ export default function LostFoundPage() {
     }
   };
 
-  const handleReportSubmit = async (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
     if (!itemName || !locationFound) return;
     setUploading(true);
@@ -106,14 +144,17 @@ export default function LostFoundPage() {
     if (photo) formData.append('photo', photo);
 
     try {
-      await api.post('/lost-found', formData);
-      toast.success('Found item reported! Thank you for helping.');
+      if (editingItem) {
+        await api.put(`/lost-found/${editingItem.id}`, formData);
+        toast.success('Item updated!');
+      } else {
+        await api.post('/lost-found', formData);
+        toast.success('Found item reported! Thank you for helping.');
+      }
       setShowReportModal(false);
-      setItemName(''); setDescription(''); setLocationFound('');
-      setPhoto(null); setPhotoPreview('');
       fetchItems();
     } catch (err) {
-      toast.error('Failed to report item');
+      toast.error(editingItem ? 'Failed to update item' : 'Failed to report item');
     } finally {
       setUploading(false);
     }
@@ -124,19 +165,17 @@ export default function LostFoundPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-[30px] font-semibold leading-[37.5px] text-[#0f172a] tracking-tight">
-              {t('lostFound.title', 'Lost & Found')}
-            </h1>
-          </div>
+          <h1 className="text-[30px] font-semibold leading-[37.5px] text-[#0f172a] tracking-tight">
+            {t('lostFound.title', 'Lost & Found')}
+          </h1>
           <p className="text-[16px] font-normal leading-[24px] text-[#64748b] mt-0.5">
             Found something or lost an essential? Claim it or report it here instead of asking around in WhatsApp.
           </p>
         </div>
 
         <button
-          onClick={() => setShowReportModal(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto cursor-pointer"
+          onClick={openReportModal}
+          className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>{t('Report found item')}</span>
@@ -149,7 +188,7 @@ export default function LostFoundPage() {
           <button
             key={status}
             onClick={() => setFilterStatus(status)}
-            className={`px-4 py-2 rounded-lg text-xs font-semibold capitalize transition-all cursor-pointer ${
+            className={`px-4 py-2 rounded-lg text-xs font-semibold capitalize transition-all ${
               filterStatus === status
                 ? 'bg-[#1a2b49] text-white shadow-xs'
                 : 'bg-white text-[#64748b] border border-slate-200/70 hover:border-slate-300'
@@ -179,10 +218,8 @@ export default function LostFoundPage() {
             >
               <div className="relative h-48 bg-[#e4f2fe] overflow-hidden">
                 {item.photo_url ? (
-                  <img
-                    src={item.photo_url} alt={item.item_name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
+                  <img src={item.photo_url} alt={item.item_name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-[#2383c9]/60 bg-gradient-to-br from-[#e4f2fe] to-[#c7e4fc]">
                     <Search className="w-12 h-12" />
@@ -192,17 +229,37 @@ export default function LostFoundPage() {
 
                 <div className="absolute top-3 left-3">
                   {item.is_claimed ? (
-                    <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-500 text-white shadow-xs">
+                    <span className="px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-emerald-500 text-white shadow-xs">
                       Claimed ✓
                     </span>
                   ) : (
-                    <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-[#1a2b49] text-white shadow-xs">
+                    <span className="px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-[#1a2b49] text-white shadow-xs">
                       Unclaimed
                     </span>
                   )}
                 </div>
 
-                <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-lg bg-black/60 text-white text-[10px] backdrop-blur-xs flex items-center gap-1">
+                {/* Edit / Delete — visible on hover for owner or admin */}
+                {(canManage || user?.id === item.posted_by_id) && (
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => openEditModal(item, e)}
+                      className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#64748b] hover:text-[#2383c9] shadow-xs"
+                      title="Edit item"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDelete(item.id, e)}
+                      className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#64748b] hover:text-red-500 shadow-xs"
+                      title="Delete item"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-sm bg-black/60 text-white text-[10px] backdrop-blur-xs flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   <span>{item.date_found ? format(new Date(item.date_found), 'd MMM') : 'Recently'}</span>
                 </div>
@@ -283,7 +340,7 @@ export default function LostFoundPage() {
               ) : (
                 <button
                   onClick={() => handleClaim(selectedItem.id)}
-                  className="w-full py-3 bg-[#1a2b49] hover:bg-[#14223b] text-white font-semibold text-xs rounded-lg shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full py-3 bg-[#1a2b49] hover:bg-[#14223b] text-white font-semibold text-xs rounded-lg shadow-xs transition-colors flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>I lost this! Claim Item</span>
@@ -323,10 +380,8 @@ export default function LostFoundPage() {
                   placeholder="Ask where to meet or give identifying detail..."
                   className="flex-1 bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                 />
-                <button
-                  type="submit" disabled={submittingComment}
-                  className="px-4 py-2.5 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg flex items-center justify-center shrink-0 cursor-pointer"
-                >
+                <button type="submit" disabled={submittingComment}
+                  className="px-4 py-2.5 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg flex items-center justify-center shrink-0">
                   <Send className="w-3.5 h-3.5" />
                 </button>
               </form>
@@ -335,18 +390,20 @@ export default function LostFoundPage() {
         </Modal>
       )}
 
-      {/* Report Found Item Modal */}
+      {/* Report / Edit Item Modal */}
       {showReportModal && (
         <Modal onClose={() => setShowReportModal(false)} maxWidth="max-w-md">
           <div className="p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-base text-[#0f172a]">Report Found Item</h3>
+              <h3 className="font-bold text-base text-[#0f172a]">
+                {editingItem ? 'Edit Found Item' : 'Report Found Item'}
+              </h3>
               <button onClick={() => setShowReportModal(false)} className="text-[#64748b] hover:text-[#0f172a]">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleReportSubmit} className="space-y-4">
+            <form onSubmit={handleFormSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-[#0f172a] mb-1">Item Name</label>
                 <input type="text" required value={itemName} onChange={(e) => setItemName(e.target.value)}
@@ -375,7 +432,9 @@ export default function LostFoundPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#0f172a] mb-1">Photo (Helps owner recognize it)</label>
+                <label className="block text-xs font-semibold text-[#0f172a] mb-1">
+                  Photo <span className="font-normal text-[#64748b]">(optional)</span>
+                </label>
                 <input type="file" accept="image/*"
                   onChange={(e) => { if (e.target.files?.[0]) { setPhoto(e.target.files[0]); setPhotoPreview(URL.createObjectURL(e.target.files[0])); } }}
                   className="text-xs text-[#64748b] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#e4f2fe] file:text-[#2383c9] hover:file:bg-[#2383c9] hover:file:text-white" />
@@ -390,8 +449,8 @@ export default function LostFoundPage() {
                   Cancel
                 </button>
                 <button type="submit" disabled={uploading}
-                  className="px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg cursor-pointer">
-                  {uploading ? 'Uploading...' : 'Publish Found Item'}
+                  className="px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg">
+                  {uploading ? (editingItem ? 'Saving...' : 'Uploading...') : (editingItem ? 'Save Changes' : 'Publish Found Item')}
                 </button>
               </div>
             </form>

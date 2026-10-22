@@ -29,12 +29,12 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email.trim(), password);
 
       toast.success('Welcome back!');
       navigate('/dashboard');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Login failed. Please verify credentials.');
+      toast.error(err.response?.data?.message || 'Login failed. Please verify credentials.', { duration: 6000 });
     } finally {
       setLoading(false);
     }
@@ -168,13 +168,21 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* No account link */}
-          <p className="text-center text-xs text-gray-500">
-            {t('auth.noAccount', 'No B.Lunder account yet?')}{' '}
-            <Link to="/register" className="text-[#1a1a2e] font-semibold hover:underline">
-              {t('auth.createAccount', 'Create an account')}
-            </Link>
-          </p>
+          {/* No account link & invitation activation */}
+          <div className="space-y-2 text-center text-xs text-gray-500">
+            <p>
+              {t('auth.noAccount', 'No B.Lunder account yet?')}{' '}
+              <Link to="/register" className="text-[#1a1a2e] font-semibold hover:underline">
+                {t('auth.createAccount', 'Create an account')}
+              </Link>
+            </p>
+            {/* <p>
+              Received an invitation code?{' '}
+              <Link to="/verify-otp" className="text-[#2383c9] font-semibold hover:underline">
+                Enter code to activate account
+              </Link>
+            </p> */}
+          </div>
         </div>
       </div>
     </div>

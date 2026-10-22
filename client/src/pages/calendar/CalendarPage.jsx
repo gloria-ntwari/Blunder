@@ -7,6 +7,7 @@ import {
   Plus,
   X,
   Trash2,
+  Edit2,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
 
   const [showModal, setShowModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null); // null = create, object = edit
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -37,6 +39,9 @@ export default function CalendarPage() {
   const [scope, setScope] = useState('school');
   const [targetTrack, setTargetTrack] = useState(user?.academic_track || 'IB');
   const [targetClass, setTargetClass] = useState('');
+  const [targetMentorId, setTargetMentorId] = useState('');
+  const [mentorsForClass, setMentorsForClass] = useState([]);
+  const [loadingMentors, setLoadingMentors] = useState(false);
   const [eventImage, setEventImage] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -59,7 +64,49 @@ export default function CalendarPage() {
     }
   };
 
-  const handleCreateEvent = async (e) => {
+  const fetchMentorsForClass = async (track, classYr) => {
+    if (!track || !classYr) { setMentorsForClass([]); setTargetMentorId(''); return; }
+    setLoadingMentors(true);
+    try {
+      const res = await api.get(`/users/mentors?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
+      setMentorsForClass(res.data || []);
+      setTargetMentorId('');
+    } catch {
+      setMentorsForClass([]);
+    } finally {
+      setLoadingMentors(false);
+    }
+  };
+
+  const openCreateModal = () => {
+    setEditingEvent(null);
+    setTitle(''); setDescription(''); setLocation('');
+    setEventDate(format(selectedDay, 'yyyy-MM-dd'));
+    setStartTime('14:00'); setEndTime('15:30');
+    setScope('school'); setTargetTrack(user?.academic_track || 'IB');
+    setTargetClass(''); setTargetMentorId(''); setMentorsForClass([]);
+    setEventImage(null); setImagePreview('');
+    setShowModal(true);
+  };
+
+  const openEditEventModal = (ev) => {
+    setEditingEvent(ev);
+    setTitle(ev.title || '');
+    setDescription(ev.description || '');
+    setLocation(ev.location || '');
+    setEventDate(ev.event_date ? format(new Date(ev.event_date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+    setStartTime(ev.start_time ? ev.start_time.substring(0, 5) : '14:00');
+    setEndTime(ev.end_time ? ev.end_time.substring(0, 5) : '15:30');
+    setScope(ev.scope || 'school');
+    setTargetTrack(ev.target_track || user?.academic_track || 'IB');
+    setTargetClass(ev.target_class || '');
+    setTargetMentorId(''); setMentorsForClass([]);
+    setEventImage(null);
+    setImagePreview(ev.image_url || '');
+    setShowModal(true);
+  };
+
+  const handleSubmitEvent = async (e) => {
     e.preventDefault();
     if (!title || !eventDate) return;
     setSubmitting(true);
@@ -74,19 +121,27 @@ export default function CalendarPage() {
     if (scope === 'academic') {
       formData.append('target_track', targetTrack);
       if (targetClass) formData.append('target_class', targetClass);
+      if (targetClass && targetMentorId) formData.append('target_mentor_id', targetMentorId);
     }
     if (scope === 'mentor_group' && user?.mentor_group_id) formData.append('target_mentor_group_id', user.mentor_group_id);
     if (eventImage) formData.append('image', eventImage);
 
     try {
-      await api.post('/events', formData);
-      toast.success('Event added to calendar!');
+      if (editingEvent) {
+        await api.put(`/events/${editingEvent.id}`, formData);
+        toast.success('Event updated!');
+      } else {
+        await api.post('/events', formData);
+        toast.success('Event added to calendar!');
+      }
       setShowModal(false);
+      setEditingEvent(null);
       setTitle(''); setDescription(''); setLocation(''); setTargetClass('');
+      setTargetMentorId(''); setMentorsForClass([]);
       setEventImage(null); setImagePreview('');
       fetchEvents();
     } catch (err) {
-      toast.error('Failed to create event');
+      toast.error(editingEvent ? 'Failed to update event' : 'Failed to create event');
     } finally {
       setSubmitting(false);
     }
@@ -129,7 +184,7 @@ export default function CalendarPage() {
 
         {canCreate && (
           <button
-            onClick={() => setShowModal(true)}
+            onClick={openCreateModal}
             className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -155,7 +210,7 @@ export default function CalendarPage() {
               </button>
               <button
                 onClick={() => setCurrentMonth(new Date())}
-                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#e4f2fe] text-[#2383c9] hover:bg-[#2383c9] hover:text-white transition-colors"
+                className="px-2.5 py-1 text-xs font-semibold rounded-sm bg-[#e4f2fe] text-[#2383c9] hover:bg-[#2383c9] hover:text-white transition-colors"
               >
                 Today
               </button>
@@ -243,7 +298,7 @@ export default function CalendarPage() {
                   <div key={ev.id} className="p-4 rounded-lg bg-[#f8fafb] border border-slate-100 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#e4f2fe] text-[#2383c9]">
+                        <span className="px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-[#e4f2fe] text-[#2383c9]">
                           {ev.scope}
                         </span>
                         {ev.target_track && (
@@ -253,9 +308,18 @@ export default function CalendarPage() {
                         )}
                       </div>
                       {canCreate && (
-                        <button onClick={() => handleDelete(ev.id)} className="text-[#64748b] hover:text-red-500 p-0.5">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => openEditEventModal(ev)}
+                            className="p-1 text-[#64748b] hover:text-[#2383c9] hover:bg-[#e4f2fe] rounded-lg transition-colors"
+                            title="Edit event"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => handleDelete(ev.id)} className="p-1 text-[#64748b] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -294,13 +358,13 @@ export default function CalendarPage() {
         <Modal onClose={() => setShowModal(false)} maxWidth="max-w-md">
           <div className="p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-base text-[#0f172a]">Add Calendar Event</h3>
+              <h3 className="font-bold text-base text-[#0f172a]">{editingEvent ? 'Edit Event' : 'Add Calendar Event'}</h3>
               <button onClick={() => setShowModal(false)} className="text-[#64748b] hover:text-[#0f172a]">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateEvent} className="space-y-4">
+            <form onSubmit={handleSubmitEvent} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-[#0f172a] mb-1">Event Title</label>
                 <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)}
@@ -340,7 +404,6 @@ export default function CalendarPage() {
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]">
                   <option value="school">School-wide Event</option>
                   <option value="academic">Academic Track Dedicated</option>
-                  <option value="mentor_group">Mentor Group Dedicated</option>
                 </select>
               </div>
 
@@ -353,6 +416,8 @@ export default function CalendarPage() {
                       onChange={(e) => {
                         setTargetTrack(e.target.value);
                         setTargetClass('');
+                        setMentorsForClass([]);
+                        setTargetMentorId('');
                       }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                     >
@@ -361,21 +426,50 @@ export default function CalendarPage() {
                       <option value="Abitur">Abitur</option>
                     </select>
                   </div>
+
                   <div>
                     <label className="block text-xs font-semibold text-[#0f172a] mb-1">Class / Year Level</label>
                     <select
                       value={targetClass}
-                      onChange={(e) => setTargetClass(e.target.value)}
+                      onChange={(e) => {
+                        const cls = e.target.value;
+                        setTargetClass(cls);
+                        if (cls) fetchMentorsForClass(targetTrack, cls);
+                        else { setMentorsForClass([]); setTargetMentorId(''); }
+                      }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                     >
                       <option value="">All Classes in {targetTrack}</option>
                       {getClassesForTrack(targetTrack).map((c) => (
-                        <option key={c.value} value={c.value}>
-                          {c.label}
-                        </option>
+                        <option key={c.value} value={c.value}>{c.label}</option>
                       ))}
                     </select>
                   </div>
+
+                  {/* Mentor group selector — appears only when a specific class is selected */}
+                  {targetClass && (
+                    <div>
+                      <label className="block text-xs font-semibold text-[#0f172a] mb-1">Mentor Group</label>
+                      {loadingMentors ? (
+                        <div className="text-xs text-[#64748b] py-1">Loading mentor groups...</div>
+                      ) : mentorsForClass.length > 0 ? (
+                        <select
+                          value={targetMentorId}
+                          onChange={(e) => setTargetMentorId(e.target.value)}
+                          className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
+                        >
+                          <option value="">All mentor groups in {targetClass}</option>
+                          {mentorsForClass.map((m) => (
+                            <option key={m.id} value={m.id}>{m.full_name}'s Group</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="text-xs text-[#64748b] p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                          No mentor groups found for {targetTrack} / {targetClass}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -386,6 +480,27 @@ export default function CalendarPage() {
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]" />
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold text-[#0f172a] mb-1">
+                  Event Photo <span className="font-normal text-[#64748b]">(optional)</span>
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      setEventImage(e.target.files[0]);
+                      setImagePreview(URL.createObjectURL(e.target.files[0]));
+                    }
+                  }}
+                  className="text-xs text-[#64748b] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#e4f2fe] file:text-[#2383c9] hover:file:bg-[#2383c9] hover:file:text-white file:transition-colors"
+                />
+                {imagePreview && (
+                  <img src={imagePreview} alt="Preview"
+                    className="w-full h-28 object-cover rounded-lg mt-2 border border-slate-100" />
+                )}
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button type="button" onClick={() => setShowModal(false)}
                   className="px-4 py-2 text-xs font-medium text-[#64748b] hover:bg-slate-100 rounded-lg">
@@ -393,7 +508,7 @@ export default function CalendarPage() {
                 </button>
                 <button type="submit" disabled={submitting}
                   className="px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg">
-                  {submitting ? 'Saving...' : 'Add to Calendar'}
+                  {submitting ? 'Saving...' : (editingEvent ? 'Save Changes' : 'Add to Calendar')}
                 </button>
               </div>
             </form>

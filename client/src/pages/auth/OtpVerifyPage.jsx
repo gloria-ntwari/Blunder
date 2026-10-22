@@ -28,7 +28,10 @@ export default function OtpVerifyPage() {
     }
     setLoading(true);
     try {
-      const res = await api.post('/auth/verify-otp', { email, code });
+      const res = await api.post('/auth/verify-otp', {
+        email: email.trim().toLowerCase(),
+        code: code.trim(),
+      });
       toast.success('Code verified! Please create your password.');
       navigate('/set-password', {
         state: { tempToken: res.data.tempToken, email }
