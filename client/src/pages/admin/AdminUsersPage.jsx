@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 import { getClassesForTrack } from '../../utils/academicTracks';
 
 import Modal from '../../components/layout/Modal.jsx';
+import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 
 export default function AdminUsersPage() {
   const { t } = useTranslation();
@@ -26,6 +27,10 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const PAGE_SIZE = 8;
 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [invitedSuccessInfo, setInvitedSuccessInfo] = useState(null);
@@ -53,8 +58,10 @@ export default function AdminUsersPage() {
   const [loadingEditMentors, setLoadingEditMentors] = useState(false);
   const [editActive, setEditActive] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
-  useEffect(() => { fetchUsers(); }, [roleFilter, searchTerm]);
+  useEffect(() => { setCurrentPage(1); }, [roleFilter, searchTerm]);
+  useEffect(() => { fetchUsers(); }, [roleFilter, searchTerm, currentPage]);
 
   const fetchInviteMentors = async (track) => {
     if (!track) return;
@@ -88,11 +95,27 @@ export default function AdminUsersPage() {
     }
   };
 
+  const openInviteModal = () => {
+    setInviteRole('school_leader');
+    setInviteTrack('IB');
+    const firstClass = getClassesForTrack('IB')[0]?.value || 'DP2';
+    setInviteClass(firstClass);
+    setInviteFullName('');
+    setInviteEmail('');
+    setInviteMentors([]);
+    setInviteMentorId('');
+    setShowInviteModal(true);
+    // Load mentors immediately for the default track
+    fetchInviteMentors('IB');
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/users?role=${roleFilter}&search=${searchTerm}`);
+      const res = await api.get(`/users?role=${roleFilter}&search=${searchTerm}&page=${currentPage}&limit=${PAGE_SIZE}`);
       setUsers(res.data.users || []);
+      setTotalPages(res.data.pages || 1);
+      setTotalUsers(res.data.total || 0);
     } catch (err) {
       console.error(err);
     } finally {
@@ -112,7 +135,7 @@ export default function AdminUsersPage() {
         admin_type: inviteRole === 'admin' ? inviteAdminType : null,
         academic_track: inviteTrack,
         class_year: inviteClass || null,
-        mentor_group_id: inviteRole === 'school_leader' ? (inviteMentorId || null) : null,
+        mentor_group_id: ['school_leader', 'student'].includes(inviteRole) ? (inviteMentorId || null) : null,
       });
 
       setShowInviteModal(false);
@@ -141,13 +164,18 @@ export default function AdminUsersPage() {
   };
 
   const handleDeleteUser = async (id) => {
-    if (!window.confirm('Delete this user?')) return;
+    setConfirmState({ open: true, id });
+  };
+
+  const doDeleteUser = async () => {
     try {
-      await api.delete(`/users/${id}`);
+      await api.delete(`/users/${confirmState.id}`);
       toast.success('User deleted');
       fetchUsers();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete user');
+    } finally {
+      setConfirmState({ open: false, id: null });
     }
   };
 
@@ -213,7 +241,7 @@ export default function AdminUsersPage() {
 
         {user?.role === 'super_admin' && (
           <button
-            onClick={() => setShowInviteModal(true)}
+            onClick={openInviteModal}
             className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto cursor-pointer"
           >
             <UserPlus className="w-3.5 h-3.5" />
@@ -365,6 +393,55 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-xs text-[#64748b]">
+          <span>
+            Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, totalUsers)} of {totalUsers} users
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-[#64748b] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              ← Prev
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
+              .reduce((acc, p, idx, arr) => {
+                if (idx > 0 && p - arr[idx - 1] > 1) acc.push('…');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((p, idx) =>
+                p === '…' ? (
+                  <span key={`ellipsis-${idx}`} className="px-1 text-[#64748b]">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPage(p)}
+                    className={`w-8 h-8 rounded-lg text-xs font-semibold transition-colors ${
+                      currentPage === p
+                        ? 'bg-[#1a2b49] text-white'
+                        : 'border border-slate-200 text-[#64748b] hover:bg-slate-50'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-[#64748b] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Invite Modal */}
       {showInviteModal && (
         <Modal onClose={() => setShowInviteModal(false)} maxWidth="max-w-md">
@@ -408,6 +485,10 @@ export default function AdminUsersPage() {
                     if (nextRole === 'admin') {
                       setInviteTrack('');
                       setInviteClass('');
+                      setInviteMentors([]);
+                      setInviteMentorId('');
+                    } else if (['school_leader', 'student'].includes(nextRole) && inviteTrack) {
+                      fetchInviteMentors(inviteTrack);
                     }
                   }}
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
@@ -415,6 +496,7 @@ export default function AdminUsersPage() {
                   <option value="school_leader">School Leader</option>
                   <option value="admin">Admin</option>
                   <option value="mentor">Mentor</option>
+                  <option value="student">Student</option>
                 </select>
               </div>
 
@@ -457,8 +539,8 @@ export default function AdminUsersPage() {
                     </select>
                   </div>
 
-                  {/* Show mentor selector only for school_leader */}
-                  {inviteRole === 'school_leader' && inviteClass && (
+                  {/* Show mentor selector for school_leader and student */}
+                  {['school_leader', 'student'].includes(inviteRole) && inviteClass && (
                     <div>
                       <label className="block text-xs font-semibold text-[#0f172a] mb-1">Assign to Mentor</label>
                       {loadingInviteMentors ? (
@@ -704,6 +786,15 @@ export default function AdminUsersPage() {
           </div>
         </Modal>
       )}
+
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete user?"
+        message="This will permanently remove this user and all their data. This cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={doDeleteUser}
+        onCancel={() => setConfirmState({ open: false, id: null })}
+      />
     </div>
   );
 }

@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
 
 import Modal from '../../components/layout/Modal.jsx';
+import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 import { getClassesForTrack } from '../../utils/academicTracks';
 
 export default function CalendarPage() {
@@ -45,6 +46,7 @@ export default function CalendarPage() {
   const [eventImage, setEventImage] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
   const canCreate = user && ['super_admin', 'admin', 'school_leader', 'mentor'].includes(user.role);
 
@@ -148,13 +150,18 @@ export default function CalendarPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this event?')) return;
+    setConfirmState({ open: true, id });
+  };
+
+  const doDelete = async () => {
     try {
-      await api.delete(`/events/${id}`);
+      await api.delete(`/events/${confirmState.id}`);
       toast.success('Event deleted');
       fetchEvents();
     } catch (err) {
       toast.error('Could not delete event');
+    } finally {
+      setConfirmState({ open: false, id: null });
     }
   };
 
@@ -345,6 +352,14 @@ export default function CalendarPage() {
                         {ev.description}
                       </p>
                     )}
+
+                    {ev.image_url && (
+                      <img
+                        src={ev.image_url}
+                        alt={ev.title}
+                        className="w-full h-32 object-cover rounded-lg mt-2 border border-slate-100"
+                      />
+                    )}
                   </div>
                 ))
               )}
@@ -515,6 +530,14 @@ export default function CalendarPage() {
           </div>
         </Modal>
       )}
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete event?"
+        message="This will permanently remove this event from the calendar."
+        confirmLabel="Delete"
+        onConfirm={doDelete}
+        onCancel={() => setConfirmState({ open: false, id: null })}
+      />
     </div>
   );
 }

@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
 import Modal from '../../components/layout/Modal.jsx';
+import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 import { getClassesForTrack } from '../../utils/academicTracks';
 
 export default function AnnouncementsPage() {
@@ -39,6 +40,7 @@ export default function AnnouncementsPage() {
   const [isPinned, setIsPinned] = useState(false);
   const [isUrgent, setIsUrgent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
   const canPost = user && ['super_admin', 'admin', 'school_leader', 'mentor'].includes(user.role);
 
@@ -127,13 +129,18 @@ export default function AnnouncementsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this announcement?')) return;
+    setConfirmState({ open: true, id });
+  };
+
+  const doDelete = async () => {
     try {
-      await api.delete(`/announcements/${id}`);
+      await api.delete(`/announcements/${confirmState.id}`);
       toast.success('Announcement removed');
       fetchAnnouncements();
     } catch (err) {
       toast.error('Could not delete announcement');
+    } finally {
+      setConfirmState({ open: false, id: null });
     }
   };
 
@@ -452,6 +459,14 @@ export default function AnnouncementsPage() {
           </div>
         </Modal>
       )}
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete announcement?"
+        message="This will permanently remove this announcement for all students."
+        confirmLabel="Delete"
+        onConfirm={doDelete}
+        onCancel={() => setConfirmState({ open: false, id: null })}
+      />
     </div>
   );
 }

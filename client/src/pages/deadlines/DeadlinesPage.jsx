@@ -13,6 +13,7 @@ import toast from 'react-hot-toast';
 import { format, differenceInCalendarDays } from 'date-fns';
 
 import Modal from '../../components/layout/Modal.jsx';
+import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 import { getClassesForTrack } from '../../utils/academicTracks';
 
 export default function DeadlinesPage() {
@@ -34,6 +35,7 @@ export default function DeadlinesPage() {
   const [mentorsForClass, setMentorsForClass] = useState([]);
   const [loadingMentors, setLoadingMentors] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
   const isAdmin = user && ['super_admin', 'admin', 'school_leader'].includes(user.role);
 
@@ -90,13 +92,18 @@ export default function DeadlinesPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this deadline?')) return;
+    setConfirmState({ open: true, id });
+  };
+
+  const doDelete = async () => {
     try {
-      await api.delete(`/deadlines/${id}`);
+      await api.delete(`/deadlines/${confirmState.id}`);
       toast.success('Deadline removed');
       fetchDeadlines();
     } catch (err) {
       toast.error('Failed to delete deadline');
+    } finally {
+      setConfirmState({ open: false, id: null });
     }
   };
 
@@ -347,6 +354,14 @@ export default function DeadlinesPage() {
           </div>
         </Modal>
       )}
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete deadline?"
+        message="This will permanently remove this deadline. This cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={doDelete}
+        onCancel={() => setConfirmState({ open: false, id: null })}
+      />
     </div>
   );
 }

@@ -40,7 +40,7 @@ export const SocketProvider = ({ children }) => {
       addNotification({
         id: alert.id,
         type: 'snack',
-        title: '🔔 Snack Alert',
+        title: 'Snack Alert',
         body: alert.message,
         is_read: false,
         created_at: new Date().toISOString(),

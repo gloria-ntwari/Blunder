@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 import { format, addDays, startOfWeek } from 'date-fns';
 
 import Modal from '../../components/layout/Modal.jsx';
+import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 export const getMealItemsList = (items) => {
   if (!items) return [];
   if (Array.isArray(items)) return items.map((i) => (typeof i === 'string' ? i : i.name)).filter(Boolean);
@@ -54,6 +55,7 @@ export default function FoodMenuPage() {
 
   const [snackMessage, setSnackMessage] = useState('');
   const [snackExpires, setSnackExpires] = useState(60);
+  const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
   const canEditMenu = user && ['super_admin', 'admin'].includes(user.role);
 
@@ -134,13 +136,18 @@ export default function FoodMenuPage() {
   };
 
   const handleDeleteMenu = async (id) => {
-    if (!window.confirm('Delete this meal entry?')) return;
+    setConfirmState({ open: true, id });
+  };
+
+  const doDeleteMenu = async () => {
     try {
-      await api.delete(`/food/${id}`);
+      await api.delete(`/food/${confirmState.id}`);
       toast.success('Meal deleted');
       fetchMenu();
     } catch (err) {
       toast.error('Failed to delete meal');
+    } finally {
+      setConfirmState({ open: false, id: null });
     }
   };
 
@@ -182,7 +189,7 @@ export default function FoodMenuPage() {
                 Real-Time Snack Alert!
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#f97316]" />
-              <span className="text-[11px] text-[#f97316] font-medium">Available right now at snack station</span>
+              <span className="text-[11px] text-[#f97316] font-medium">Available right now </span>
             </div>
             <p className="text-xs md:text-sm font-semibold text-[#0f172a] mt-0.5">
               {activeSnackAlerts[0].message}
@@ -569,6 +576,15 @@ export default function FoodMenuPage() {
           </div>
         </Modal>
       )}
+      {/* Confirm Delete */}
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete meal entry?"
+        message="This will remove the meal from the timetable. This cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={doDeleteMenu}
+        onCancel={() => setConfirmState({ open: false, id: null })}
+      />
     </div>
   );
 }

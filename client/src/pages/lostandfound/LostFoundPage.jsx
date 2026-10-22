@@ -18,6 +18,7 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
 import Modal from '../../components/layout/Modal.jsx';
+import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 
 export default function LostFoundPage() {
   const { t } = useTranslation();
@@ -43,6 +44,7 @@ export default function LostFoundPage() {
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
   const canManage = user && ['super_admin', 'admin'].includes(user.role);
 
@@ -93,13 +95,18 @@ export default function LostFoundPage() {
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this lost & found item?')) return;
+    setConfirmState({ open: true, id });
+  };
+
+  const doDelete = async () => {
     try {
-      await api.delete(`/lost-found/${id}`);
+      await api.delete(`/lost-found/${confirmState.id}`);
       toast.success('Item deleted');
       fetchItems();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not delete item');
+    } finally {
+      setConfirmState({ open: false, id: null });
     }
   };
 
@@ -457,6 +464,14 @@ export default function LostFoundPage() {
           </div>
         </Modal>
       )}
+      <ConfirmModal
+        open={confirmState.open}
+        title="Delete item?"
+        message="This will permanently remove this lost & found item."
+        confirmLabel="Delete"
+        onConfirm={doDelete}
+        onCancel={() => setConfirmState({ open: false, id: null })}
+      />
     </div>
   );
 }
