@@ -97,7 +97,7 @@ export default function RegisterPage() {
       localStorage.setItem('blunder_refresh_token', res.data.refreshToken);
       updateUser(res.data.user);
       toast.success('Registration completed! Welcome to Louisenlund.');
-      window.location.href = '/dashboard';
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not complete registration.');
     } finally {
