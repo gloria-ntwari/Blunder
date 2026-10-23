@@ -49,11 +49,11 @@ export default function LoginPage() {
         {/* Background photo */}
         <div
           className="absolute inset-0 bg-cover bg-center opacity-60"
-          style={{ backgroundImage: `url('/assets/louisenlund_castle.jpg')` }}
+          style={{ backgroundImage: `url('/assets/image2.jpeg')` }}
         />
 
         {/* Gradient: clear at top, deep blue builds from bottom — like image 1 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b6b]/95 via-[#1a3a8a]/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b6b]/95 via-[#1a3a8a]/10 to-transparent" />
 
         {/* Brand header */}
         <div className="relative z-10 flex items-center gap-3">

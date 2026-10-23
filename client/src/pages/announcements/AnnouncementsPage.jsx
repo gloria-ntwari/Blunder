@@ -42,7 +42,12 @@ export default function AnnouncementsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
-  const canPost = user && ['super_admin', 'admin', 'school_leader', 'mentor'].includes(user.role);
+  const canPost = user && ['super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor'].includes(user.role);
+
+  // Scope options available per role
+  const canPostSchoolWide = ['super_admin', 'sv_committee', 'teacher'].includes(user?.role);
+  const canPostTrack      = ['super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee'].includes(user?.role);
+  const canPostMentorGroup = user?.role === 'mentor';
 
   const fetchMentorsForClass = async (track, classYr) => {
     if (!track || !classYr) { setMentorsForClass([]); setTargetMentorId(''); return; }
@@ -60,7 +65,9 @@ export default function AnnouncementsPage() {
 
   const openCreateModal = () => {
     setEditingAnn(null);
-    setTitle(''); setBody(''); setScope('school_wide');
+    // Default scope based on role
+    const defaultScope = canPostSchoolWide ? 'school_wide' : canPostTrack ? 'academic_track' : 'mentor_group';
+    setTitle(''); setBody(''); setScope(defaultScope);
     setTargetTrack(user?.academic_track || 'IB'); setTargetClass('');
     setTargetMentorId(''); setMentorsForClass([]);
     setIsPinned(false); setIsUrgent(false);
@@ -331,11 +338,9 @@ export default function AnnouncementsPage() {
                   onChange={(e) => setScope(e.target.value)}
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors"
                 >
-                  <option value="school_wide">School-wide (All Students & Staff)</option>
-                  <option value="academic_track">Academic Track</option>
-                  {user?.role === 'mentor' && (
-                    <option value="mentor_group">My Mentor Group</option>
-                  )}
+                  {canPostSchoolWide && <option value="school_wide">School-wide (All Students & Staff)</option>}
+                  {canPostTrack && <option value="academic_track">Academic Track</option>}
+                  {canPostMentorGroup && <option value="mentor_group">My Mentor Group</option>}
                 </select>
               </div>
 

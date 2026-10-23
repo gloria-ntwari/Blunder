@@ -11,7 +11,6 @@ import {
   Users,
   Settings,
   LogOut,
-  Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -22,78 +21,64 @@ export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const { unreadCount } = useNotificationStore();
 
+  const role = user?.role;
+
+  // Role groups
+  const canManageUsers = ['super_admin', 'student_leader'].includes(role);
+  const showUserMgmt   = canManageUsers;
+
   const handleLogout = async () => {
     await logout();
     navigate('/login');
   };
 
-  const isAdmin = user && ['super_admin', 'admin'].includes(user.role);
+  const navLinkClass = (isActive) =>
+    `relative flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
+      isActive ? 'bg-[#1a2b49] text-white shadow-xs' : 'text-[rgb(52,58,64)] hover:bg-slate-50'
+    }`;
+
+  const indicator = (
+    <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-[#1a2b49] rounded-r-sm" />
+  );
 
   return (
     <aside className="border border-slate-200/60 w-64 bg-white flex flex-col justify-between shrink-0 h-full select-none z-20 font-['Outfit'] rounded-lg overflow-hidden">
       <div>
-        {/* Navigation Links */}
         <div className="px-3 py-4 space-y-1">
-          {/* Overview */}
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              `relative flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
-                isActive
-                  ? 'bg-[#1a2b49] text-white shadow-xs'
-                  : 'text-[rgb(52,58,64)] hover:bg-slate-50'
-              }`
-            }
-          >
+
+          {/* Overview — everyone */}
+          <NavLink to="/dashboard" className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
-                {isActive && (
-                  <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-[#1a2b49] rounded-r-sm" />
-                )}
+                {isActive && indicator}
                 <LayoutDashboard className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                 <span>{t('nav.overview', 'Dashboard')}</span>
               </>
             )}
           </NavLink>
 
-          {/* Food Menu */}
-          <NavLink
-            to="/food-menu"
-            className={({ isActive }) =>
-              `relative flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
-                isActive
-                  ? 'bg-[#1a2b49] text-white shadow-xs'
-                  : 'text-[rgb(52,58,64)] hover:bg-slate-50'
-              }`
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && (
-                  <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-[#1a2b49] rounded-r-sm" />
-                )}
-                <UtensilsCrossed className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                <span>{t('nav.foodMenu', 'Food menu')}</span>
-              </>
-            )}
-          </NavLink>
+          {/* Food Menu — hidden for nobody (view is open to all, admin actions gated in page) */}
+          {role !== 'teacher' && (
+            <NavLink to="/food-menu" className={({ isActive }) => navLinkClass(isActive)}>
+              {({ isActive }) => (
+                <>
+                  {isActive && indicator}
+                  <UtensilsCrossed className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                  <span>{t('nav.foodMenu', 'Food menu')}</span>
+                </>
+              )}
+            </NavLink>
+          )}
 
-          {/* Announcements */}
-          <NavLink
-            to="/announcements"
-            className={({ isActive }) =>
-              `relative flex items-center justify-between px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
-                isActive
-                  ? 'bg-[#1a2b49] text-white shadow-xs'
-                  : 'text-[rgb(52,58,64)] hover:bg-slate-50'
-              }`
-            }
-          >
+          {/* Announcements — everyone */}
+          <NavLink to="/announcements" className={({ isActive }) =>
+            `relative flex items-center justify-between px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
+              isActive ? 'bg-[#1a2b49] text-white shadow-xs' : 'text-[rgb(52,58,64)] hover:bg-slate-50'
+            }`
+          }>
             {({ isActive }) => (
               <>
-                {isActive && (
-                  <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-[#1a2b49] rounded-r-sm" />
-                )}
+                {isActive && indicator}
                 <div className="flex items-center gap-3">
                   <Bell className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                   <span>{t('nav.announcements', 'Announcements')}</span>
@@ -107,90 +92,46 @@ export default function Sidebar() {
             )}
           </NavLink>
 
-          {/* Lost & Found */}
-          <NavLink
-            to="/lost-found"
-            className={({ isActive }) =>
-              `relative flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
-                isActive
-                  ? 'bg-[#1a2b49] text-white shadow-xs'
-                  : 'text-[rgb(52,58,64)]  hover:bg-slate-50'
-              }`
-            }
-          >
+          {/* Lost & Found — everyone */}
+          <NavLink to="/lost-found" className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
-                {isActive && (
-                  <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-[#1a2b49] rounded-r-sm" />
-                )}
+                {isActive && indicator}
                 <Search className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                 <span>{t('nav.lostFound', 'Lost & found')}</span>
               </>
             )}
           </NavLink>
 
-          {/* Calendar */}
-          <NavLink
-            to="/calendar"
-            className={({ isActive }) =>
-              `relative flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
-                isActive
-                  ? 'bg-[#1a2b49] text-white shadow-xs'
-                  : 'text-[rgb(52,58,64)] hover:bg-slate-50'
-              }`
-            }
-          >
+          {/* Calendar — everyone */}
+          <NavLink to="/calendar" className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
-                {isActive && (
-                  <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-[#1a2b49] rounded-r-sm" />
-                )}
+                {isActive && indicator}
                 <Calendar className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                 <span>{t('nav.calendar', 'Calendar')}</span>
               </>
             )}
           </NavLink>
 
-          {/* Deadlines */}
-          <NavLink
-            to="/deadlines"
-            className={({ isActive }) =>
-              `relative flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
-                isActive
-                  ? 'bg-[#1a2b49] text-white shadow-xs'
-                  : 'text-[rgb(52,58,64)] hover:bg-slate-50'
-              }`
-            }
-          >
+          {/* Deadlines — everyone */}
+          <NavLink to="/deadlines" className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
-                {isActive && (
-                  <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-[#1a2b49] rounded-r-sm" />
-                )}
+                {isActive && indicator}
                 <Clock className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                 <span>{t('nav.deadlines', 'Deadlines')}</span>
               </>
             )}
           </NavLink>
 
-          {/* Admin Management */}
-          {isAdmin && (
+          {/* User Management — super_admin only */}
+          {showUserMgmt && (
             <div className="pt-2">
-              <NavLink
-                to="/admin/users"
-                className={({ isActive }) =>
-                  `relative flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
-                    isActive
-                      ? 'bg-[#1a2b49] text-white shadow-xs'
-                      : 'text-[rgb(52,58,64)] hover:bg-slate-50'
-                  }`
-                }
-              >
+              <NavLink to="/admin/users" className={({ isActive }) => navLinkClass(isActive)}>
                 {({ isActive }) => (
                   <>
-                    {isActive && (
-                      <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-[#1a2b49] rounded-r-sm" />
-                    )}
+                    {isActive && indicator}
                     <Users className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                     <span>User Management</span>
                   </>
@@ -201,26 +142,19 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Footer Area: Settings & Sign Out (Matching Image 1) */}
+      {/* Footer */}
       <div className="p-3 border-t border-slate-100 space-y-1">
-        <NavLink
-          to="/profile"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-colors ${
-              isActive
-                ? 'bg-slate-100 text-[#0f172a]'
-                : 'text-[rgb(52,58,64)] hover:bg-slate-50'
-            }`
-          }
-        >
+        <NavLink to="/profile" className={({ isActive }) =>
+          `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-colors ${
+            isActive ? 'bg-slate-100 text-[#0f172a]' : 'text-[rgb(52,58,64)] hover:bg-slate-50'
+          }`
+        }>
           <Settings className="w-4 h-4 text-slate-500 shrink-0" />
           <span>Settings</span>
         </NavLink>
 
-        <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] text-[rgb(52,58,64)] hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer text-left"
-        >
+        <button onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] text-[rgb(52,58,64)] hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer text-left">
           <LogOut className="w-4 h-4 text-slate-500 shrink-0" />
           <span>Sign Out</span>
         </button>

@@ -71,7 +71,7 @@ function AppInner() {
           <Route
             path="/admin/users"
             element={
-              ['super_admin', 'admin'].includes(user?.role)
+              ['super_admin', 'student_leader'].includes(user?.role)
                 ? <AdminUsersPage />
                 : <Navigate to="/dashboard" replace />
             }

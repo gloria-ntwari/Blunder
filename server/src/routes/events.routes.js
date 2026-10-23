@@ -6,8 +6,16 @@ import { getEvents, createEvent, updateEvent, deleteEvent } from '../controllers
 const router = express.Router();
 
 router.get('/', authenticate, getEvents);
-router.post('/', authenticate, authorize('super_admin', 'admin', 'school_leader', 'mentor'), upload.single('image'), createEvent);
-router.put('/:id', authenticate, authorize('super_admin', 'admin', 'school_leader', 'mentor'), upload.single('image'), updateEvent);
-router.delete('/:id', authenticate, authorize('super_admin', 'admin', 'school_leader', 'mentor'), deleteEvent);
+
+// Can create/edit/delete events: all staff except committee and student
+router.post('/', authenticate, authorize(
+  'super_admin', 'sv_committee', 'teacher', 'student_leader', 'mentor'
+), upload.single('image'), createEvent);
+router.put('/:id', authenticate, authorize(
+  'super_admin', 'sv_committee', 'teacher', 'student_leader', 'mentor'
+), upload.single('image'), updateEvent);
+router.delete('/:id', authenticate, authorize(
+  'super_admin', 'sv_committee', 'teacher', 'student_leader', 'mentor'
+), deleteEvent);
 
 export default router;

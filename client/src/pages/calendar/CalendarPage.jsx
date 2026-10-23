@@ -48,7 +48,7 @@ export default function CalendarPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
-  const canCreate = user && ['super_admin', 'admin', 'school_leader', 'mentor'].includes(user.role);
+  const canCreate = user && ['super_admin', 'sv_committee', 'teacher', 'student_leader', 'mentor'].includes(user.role);
 
   useEffect(() => { fetchEvents(); }, [currentMonth]);
 

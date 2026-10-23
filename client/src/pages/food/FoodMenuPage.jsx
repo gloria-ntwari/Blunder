@@ -39,7 +39,6 @@ export default function FoodMenuPage() {
   const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedMealType, setSelectedMealType] = useState('all');
   const [menuItems, setMenuItems] = useState([]);
-  const [activeSnackAlerts, setActiveSnackAlerts] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -57,11 +56,10 @@ export default function FoodMenuPage() {
   const [snackExpires, setSnackExpires] = useState(60);
   const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
-  const canEditMenu = user && ['super_admin', 'admin'].includes(user.role);
+  const canEditMenu = user && ['super_admin', 'sv_committee'].includes(user.role);
 
   useEffect(() => {
     fetchMenu();
-    fetchSnackAlerts();
   }, [selectedDate]);
 
   const fetchMenu = async () => {
@@ -73,15 +71,6 @@ export default function FoodMenuPage() {
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchSnackAlerts = async () => {
-    try {
-      const res = await api.get('/food/snack-alerts');
-      setActiveSnackAlerts(res.data);
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -162,7 +151,6 @@ export default function FoodMenuPage() {
       toast.success('Snack alert broadcasted to everyone!');
       setSnackMessage('');
       setShowSnackModal(false);
-      fetchSnackAlerts();
     } catch (err) {
       toast.error('Could not post snack alert');
     }
@@ -177,27 +165,6 @@ export default function FoodMenuPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in font-['Outfit']">
-      {/* Active Snack Alert Banner */}
-      {activeSnackAlerts.length > 0 && (
-        <div className="bg-[#fff7ed] border border-[#f97316]/30 p-4 rounded-lg flex items-start gap-3 shadow-xs">
-          <div className="w-9 h-9 rounded-lg bg-[#f97316] text-white flex items-center justify-center shrink-0">
-            <BellRing className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-[#c2410c] uppercase tracking-wider">
-                Real-Time Snack Alert!
-              </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#f97316]" />
-              <span className="text-[11px] text-[#f97316] font-medium">Available right now </span>
-            </div>
-            <p className="text-xs md:text-sm font-semibold text-[#0f172a] mt-0.5">
-              {activeSnackAlerts[0].message}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>

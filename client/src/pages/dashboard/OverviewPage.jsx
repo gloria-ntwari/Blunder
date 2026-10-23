@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Bell,
+  BellRing,
   Calendar,
   Clock,
   Users,
@@ -12,10 +13,13 @@ import {
   Sparkles,
   Search,
   CheckCircle2,
-  FileText
+  FileText,
+  X
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { useSocket } from '../../context/SocketContext.jsx';
 import api from '../../services/api';
+import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import Modal from '../../components/layout/Modal.jsx';
 
@@ -23,28 +27,49 @@ export default function OverviewPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const socket = useSocket();
 
   const [announcements, setAnnouncements] = useState([]);
   const [todayMenu, setTodayMenu] = useState([]);
   const [events, setEvents] = useState([]);
   const [deadlines, setDeadlines] = useState([]);
   const [lostFoundCount, setLostFoundCount] = useState(0);
+  const [activeSnackAlerts, setActiveSnackAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showQuickAdd, setShowQuickAdd] = useState(false);
+  const [showSnackModal, setShowSnackModal] = useState(false);
+  const [snackMessage, setSnackMessage] = useState('');
+  const [snackExpires, setSnackExpires] = useState(60);
+  const [postingSnack, setPostingSnack] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
+  useEffect(() => {
+    if (!socket) return;
+    const handleSnackAlert = (newAlert) => {
+      setActiveSnackAlerts((prev) => {
+        if (prev.some((a) => a.id === newAlert.id)) return prev;
+        return [newAlert, ...prev];
+      });
+    };
+    socket.on('snack_alert', handleSnackAlert);
+    return () => {
+      socket.off('snack_alert', handleSnackAlert);
+    };
+  }, [socket]);
+
   const fetchDashboardData = async () => {
     setLoading(true);
     try {
-      const [annRes, menuRes, eventRes, deadRes, lfRes] = await Promise.allSettled([
+      const [annRes, menuRes, eventRes, deadRes, lfRes, snackRes] = await Promise.allSettled([
         api.get('/announcements?limit=4'),
         api.get('/food/today'),
         api.get('/events?limit=4'),
         api.get('/deadlines'),
-        api.get('/lost-found?status=unclaimed')
+        api.get('/lost-found?status=unclaimed'),
+        api.get('/food/snack-alerts')
       ]);
 
       if (annRes.status === 'fulfilled') setAnnouncements(annRes.value.data.announcements || []);
@@ -52,10 +77,37 @@ export default function OverviewPage() {
       if (eventRes.status === 'fulfilled') setEvents(eventRes.value.data || []);
       if (deadRes.status === 'fulfilled') setDeadlines(deadRes.value.data || []);
       if (lfRes.status === 'fulfilled') setLostFoundCount((lfRes.value.data.items || []).length);
+      if (snackRes.status === 'fulfilled') setActiveSnackAlerts(snackRes.value.data || []);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDismissSnackAlert = (id) => {
+    setActiveSnackAlerts((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  const handlePostSnackAlert = async (e) => {
+    e.preventDefault();
+    if (!snackMessage) return;
+    setPostingSnack(true);
+    try {
+      const res = await api.post('/food/snack-alert', {
+        message: snackMessage,
+        expires_minutes: Number(snackExpires)
+      });
+      toast.success('Snack alert broadcasted to everyone!');
+      setSnackMessage('');
+      setShowSnackModal(false);
+      if (res.data) {
+        setActiveSnackAlerts((prev) => [res.data, ...prev.filter((a) => a.id !== res.data.id)]);
+      }
+    } catch (err) {
+      toast.error('Could not post snack alert');
+    } finally {
+      setPostingSnack(false);
     }
   };
 
@@ -89,6 +141,27 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in font-['Outfit']">
+      {/* Active Snack Alert Banner */}
+      {activeSnackAlerts.length > 0 && (
+        <div className="bg-[#fff7ed] border border-[#f97316]/30 p-4 rounded-lg flex items-start gap-3 shadow-xs">
+          <div className="w-9 h-9 rounded-lg bg-[#f97316] text-white flex items-center justify-center shrink-0">
+            <BellRing className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[#c2410c] uppercase tracking-wider">
+                Real-Time Snack Alert!
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#f97316]" />
+              <span className="text-[11px] text-[#f97316] font-medium">Available right now </span>
+            </div>
+            <p className="text-xs md:text-sm font-semibold text-[#0f172a] mt-0.5">
+              {activeSnackAlerts[0].message}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Top Header Row (Matching User Typography Specifications) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -210,7 +283,7 @@ export default function OverviewPage() {
       <div className="relative rounded-xl overflow-hidden min-h-[170px] md:min-h-[190px] flex flex-col justify-end p-5 md:p-7 shadow-xs border border-slate-200/70">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url('/assets/louisenlund_castle.jpg')` }}
+          style={{ backgroundImage: `url('/assets/image1.jpeg')` }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/15" />
 
@@ -230,7 +303,7 @@ export default function OverviewPage() {
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <span className="px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-md text-[11px] font-medium text-white border border-white/20">
-              {user?.mentor_group_name || 'Louisenlund Campus'}
+              Louisenlund Campus
             </span>
 {user?.class_year && (
   <span className="px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-md text-[11px] font-medium text-white border border-white/20">
@@ -411,7 +484,7 @@ export default function OverviewPage() {
                 </div>
               </button>
 
-              {['super_admin', 'admin', 'mentor'].includes(user?.role) && (
+              {['super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor'].includes(user?.role) && (
                 <button
                   onClick={() => { setShowQuickAdd(false); navigate('/announcements?action=new'); }}
                   className="w-full text-left p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors flex items-center gap-3 text-xs font-semibold text-[#0f172a]"

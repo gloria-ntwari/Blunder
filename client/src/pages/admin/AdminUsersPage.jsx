@@ -34,8 +34,8 @@ export default function AdminUsersPage() {
 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [invitedSuccessInfo, setInvitedSuccessInfo] = useState(null);
-  const [inviteRole, setInviteRole] = useState('school_leader');
-  const [inviteAdminType, setInviteAdminType] = useState('school_leader');
+  const [inviteRole, setInviteRole] = useState('sv_committee');
+  const [inviteAdminType, setInviteAdminType] = useState('');
   const [inviteTrack, setInviteTrack] = useState('IB');
   const [inviteClass, setInviteClass] = useState('DP2');
   const [inviteFullName, setInviteFullName] = useState('');
@@ -63,11 +63,13 @@ export default function AdminUsersPage() {
   useEffect(() => { setCurrentPage(1); }, [roleFilter, searchTerm]);
   useEffect(() => { fetchUsers(); }, [roleFilter, searchTerm, currentPage]);
 
-  const fetchInviteMentors = async (track) => {
+  const fetchInviteMentors = async (track, classYr) => {
     if (!track) return;
     setLoadingInviteMentors(true);
     try {
-      const res = await api.get(`/users/mentors?academic_track=${track}`);
+      let url = `/users/mentors?academic_track=${track}`;
+      if (classYr) url += `&class_year=${encodeURIComponent(classYr)}`;
+      const res = await api.get(url);
       const list = res.data || [];
       setInviteMentors(list);
       setInviteMentorId(list.length > 0 ? list[0].mentor_group_id : '');
@@ -79,11 +81,13 @@ export default function AdminUsersPage() {
     }
   };
 
-  const fetchEditMentors = async (track) => {
+  const fetchEditMentors = async (track, classYr) => {
     if (!track) { setEditMentors([]); setEditMentorId(''); return; }
     setLoadingEditMentors(true);
     try {
-      const res = await api.get(`/users/mentors?academic_track=${track}`);
+      let url = `/users/mentors?academic_track=${track}`;
+      if (classYr) url += `&class_year=${encodeURIComponent(classYr)}`;
+      const res = await api.get(url);
       const list = res.data || [];
       setEditMentors(list);
       setEditMentorId(''); // will be set to current group in openEditModal
@@ -96,7 +100,7 @@ export default function AdminUsersPage() {
   };
 
   const openInviteModal = () => {
-    setInviteRole('school_leader');
+    setInviteRole('sv_committee');
     setInviteTrack('IB');
     const firstClass = getClassesForTrack('IB')[0]?.value || 'DP2';
     setInviteClass(firstClass);
@@ -105,8 +109,8 @@ export default function AdminUsersPage() {
     setInviteMentors([]);
     setInviteMentorId('');
     setShowInviteModal(true);
-    // Load mentors immediately for the default track
-    fetchInviteMentors('IB');
+    // Load mentors immediately for the default track and class
+    fetchInviteMentors('IB', firstClass);
   };
 
   const fetchUsers = async () => {
@@ -135,7 +139,7 @@ export default function AdminUsersPage() {
         admin_type: inviteRole === 'admin' ? inviteAdminType : null,
         academic_track: inviteTrack,
         class_year: inviteClass || null,
-        mentor_group_id: ['school_leader', 'student'].includes(inviteRole) ? (inviteMentorId || null) : null,
+        mentor_group_id: !['teacher', 'super_admin'].includes(inviteRole) ? (inviteMentorId || null) : null,
       });
 
       setShowInviteModal(false);
@@ -190,8 +194,8 @@ export default function AdminUsersPage() {
     setEditActive(u.is_active !== false);
     setShowEditModal(true);
     // Load mentors then pre-select the user's current mentor_group_id
-    if (['school_leader', 'student'].includes(u.role) && u.academic_track) {
-      fetchEditMentors(u.academic_track).then(() => {
+    if (!['teacher', 'super_admin'].includes(u.role) && u.academic_track) {
+      fetchEditMentors(u.academic_track, u.class_year || '').then(() => {
         setEditMentorId(u.mentor_group_id || '');
       });
     } else {
@@ -208,9 +212,9 @@ export default function AdminUsersPage() {
         full_name: editFullName,
         role: editRole,
         admin_type: editRole === 'admin' ? editAdminType : null,
-        academic_track: editRole === 'admin' ? null : editTrack || null,
-        class_year: editRole === 'admin' ? null : editClass || null,
-        mentor_group_id: ['school_leader', 'student'].includes(editRole) ? (editMentorId || null) : null,
+        academic_track: editRole === 'super_admin' ? null : editTrack || null,
+        class_year: editRole === 'super_admin' ? null : editClass || null,
+        mentor_group_id: !['teacher', 'super_admin'].includes(editRole) ? (editMentorId || null) : null,
         is_active: editActive,
       });
       toast.success('User updated successfully');
@@ -239,13 +243,13 @@ export default function AdminUsersPage() {
           </p>
         </div>
 
-        {user?.role === 'super_admin' && (
+        {['super_admin', 'student_leader'].includes(user?.role) && (
           <button
             onClick={openInviteModal}
             className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto cursor-pointer"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span>Invite Admin or Mentor</span>
+            <span>Invite Staff / User</span>
           </button>
         )}
       </div>
@@ -253,7 +257,7 @@ export default function AdminUsersPage() {
       {/* Filter and Search */}
       <div className="bg-white p-4 rounded-lg border border-slate-200/70 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-          {['', 'super_admin', 'admin', 'school_leader', 'mentor', 'student'].map((r) => (
+          {['', 'super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student'].map((r) => (
             <button
               key={r}
               onClick={() => setRoleFilter(r)}
@@ -322,8 +326,10 @@ export default function AdminUsersPage() {
                       <div className="flex flex-col gap-0.5">
                         <span className={`inline-block w-fit px-2 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider ${
                           u.role === 'super_admin' ? 'bg-red-50 text-red-600'
-                          : u.role === 'school_leader' ? 'bg-indigo-50 text-indigo-600'
-                          : u.role === 'admin' ? 'bg-orange-50 text-[#f97316]'
+                          : u.role === 'sv_committee' ? 'bg-blue-50 text-blue-700'
+                          : u.role === 'teacher' ? 'bg-emerald-50 text-emerald-700'
+                          : u.role === 'student_leader' ? 'bg-indigo-50 text-indigo-600'
+                          : u.role === 'committee' ? 'bg-cyan-50 text-cyan-700'
                           : u.role === 'mentor' ? 'bg-purple-50 text-purple-600'
                           : 'bg-[#e4f2fe] text-[#2383c9]'
                         }`}>
@@ -482,19 +488,21 @@ export default function AdminUsersPage() {
                   onChange={(e) => {
                     const nextRole = e.target.value;
                     setInviteRole(nextRole);
-                    if (nextRole === 'admin') {
-                      setInviteTrack('');
+                    // teacher only has track, no class/mentor
+                    if (nextRole === 'teacher') {
                       setInviteClass('');
                       setInviteMentors([]);
                       setInviteMentorId('');
-                    } else if (['school_leader', 'student'].includes(nextRole) && inviteTrack) {
-                      fetchInviteMentors(inviteTrack);
+                    } else if (inviteTrack) {
+                      fetchInviteMentors(inviteTrack, inviteClass);
                     }
                   }}
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                 >
-                  <option value="school_leader">School Leader</option>
-                  <option value="admin">Admin</option>
+                  <option value="sv_committee">SV &amp; Committee</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="student_leader">Student Leader</option>
+                  <option value="committee">Committee</option>
                   <option value="mentor">Mentor</option>
                   <option value="student">Student</option>
                 </select>
@@ -512,7 +520,7 @@ export default function AdminUsersPage() {
                         const classes = getClassesForTrack(nextTrack);
                         const firstClass = classes[0]?.value || '';
                         setInviteClass(firstClass);
-                        if (inviteRole === 'school_leader') fetchInviteMentors(nextTrack);
+                        if (inviteRole !== 'teacher') fetchInviteMentors(nextTrack, firstClass);
                       }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                     >
@@ -522,46 +530,52 @@ export default function AdminUsersPage() {
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-semibold text-[#0f172a] mb-1">Class / Year Level</label>
-                    <select
-                      value={inviteClass}
-                      onChange={(e) => {
-                        setInviteClass(e.target.value);
-                        if (inviteRole === 'school_leader') fetchInviteMentors(inviteTrack);
-                      }}
-                      className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
-                    >
-                      <option value="">All Classes in {inviteTrack}</option>
-                      {getClassesForTrack(inviteTrack).map((c) => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Show mentor selector for school_leader and student */}
-                  {['school_leader', 'student'].includes(inviteRole) && inviteClass && (
-                    <div>
-                      <label className="block text-xs font-semibold text-[#0f172a] mb-1">Assign to Mentor</label>
-                      {loadingInviteMentors ? (
-                        <div className="text-xs text-[#64748b] py-1">Loading mentors...</div>
-                      ) : inviteMentors.length > 0 ? (
+                  {/* Class and mentor only for non-teacher roles */}
+                  {inviteRole !== 'teacher' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-semibold text-[#0f172a] mb-1">Class / Year Level</label>
                         <select
-                          value={inviteMentorId}
-                          onChange={(e) => setInviteMentorId(e.target.value)}
+                          value={inviteClass}
+                          onChange={(e) => {
+                            const nextClass = e.target.value;
+                            setInviteClass(nextClass);
+                            if (inviteRole !== 'teacher') fetchInviteMentors(inviteTrack, nextClass);
+                          }}
                           className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                         >
-                          <option value="">No mentor assigned</option>
-                          {inviteMentors.map((m) => (
-                            <option key={m.mentor_group_id} value={m.mentor_group_id}>{m.group_name}</option>
+                          <option value="">All Classes in {inviteTrack}</option>
+                          {getClassesForTrack(inviteTrack).map((c) => (
+                            <option key={c.value} value={c.value}>{c.label}</option>
                           ))}
                         </select>
-                      ) : (
-                        <div className="text-xs text-[#64748b] p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-                          No mentors found for {inviteTrack} / {inviteClass}
+                      </div>
+
+                      {/* Mentor selector for non-teacher roles */}
+                      {inviteClass && (
+                        <div>
+                          <label className="block text-xs font-semibold text-[#0f172a] mb-1">Assign to Mentor</label>
+                          {loadingInviteMentors ? (
+                            <div className="text-xs text-[#64748b] py-1">Loading mentors...</div>
+                          ) : inviteMentors.length > 0 ? (
+                            <select
+                              value={inviteMentorId}
+                              onChange={(e) => setInviteMentorId(e.target.value)}
+                              className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
+                            >
+                              <option value="">No mentor assigned</option>
+                              {inviteMentors.map((m) => (
+                                <option key={m.mentor_group_id} value={m.mentor_group_id}>{m.group_name}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="text-xs text-[#64748b] p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                              No mentors found for {inviteTrack} / {inviteClass}
+                            </div>
+                          )}
                         </div>
                       )}
-                    </div>
+                    </>
                   )}
                 </>
               )}
@@ -668,27 +682,18 @@ export default function AdminUsersPage() {
                   }}
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]">
                   <option value="super_admin">Super Admin</option>
-                  <option value="admin">Admin</option>
-                  <option value="school_leader">School Leader</option>
+                  <option value="sv_committee">SV &amp; Committee</option>
+                  <option value="teacher">Teacher</option>
+                  <option value="student_leader">Student Leader</option>
+                  <option value="committee">Committee</option>
                   <option value="mentor">Mentor</option>
                   <option value="student">Student</option>
                 </select>
               </div>
 
-              {editRole === 'admin' && (
-                <div>
-                  <label className="block text-xs font-semibold text-[#0f172a] mb-1">Admin Type</label>
-                  <select value={editAdminType} onChange={(e) => setEditAdminType(e.target.value)}
-                    className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]">
-                    <option value="school_leader">School Leader</option>
-                    <option value="it_admin">IT Admin</option>
-                    <option value="kitchen_admin">Kitchen Admin</option>
-                    <option value="general">General</option>
-                  </select>
-                </div>
-              )}
+              {/* No admin_type section needed — old admin role removed */}
 
-              {editRole !== 'admin' && (
+              {editRole !== 'super_admin' && (
                 <>
                   <div>
                     <label className="block text-xs font-semibold text-[#0f172a] mb-1">Academic Track</label>
@@ -699,8 +704,8 @@ export default function AdminUsersPage() {
                         const classes = getClassesForTrack(nextTrack);
                         const firstClass = classes[0]?.value || '';
                         setEditClass(firstClass);
-                        if (['school_leader', 'student'].includes(editRole)) {
-                          fetchEditMentors(nextTrack);
+                        if (!['teacher', 'super_admin'].includes(editRole)) {
+                          fetchEditMentors(nextTrack, firstClass);
                         }
                       }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]">
@@ -711,14 +716,16 @@ export default function AdminUsersPage() {
                     </select>
                   </div>
 
-                  {editTrack && (
+                  {/* Class and mentor — only for non-teacher roles */}
+                  {editRole !== 'teacher' && editTrack && (
                     <div>
                       <label className="block text-xs font-semibold text-[#0f172a] mb-1">Class / Year Level</label>
                       <select value={editClass}
                         onChange={(e) => {
-                          setEditClass(e.target.value);
-                          if (['school_leader', 'student'].includes(editRole)) {
-                            fetchEditMentors(editTrack);
+                          const nextClass = e.target.value;
+                          setEditClass(nextClass);
+                          if (!['teacher', 'super_admin'].includes(editRole)) {
+                            fetchEditMentors(editTrack, nextClass);
                           }
                         }}
                         className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]">
@@ -730,8 +737,8 @@ export default function AdminUsersPage() {
                     </div>
                   )}
 
-                  {/* Mentor selector — shown for school_leader and student when class is set */}
-                  {['school_leader', 'student'].includes(editRole) && editTrack && editClass && (
+                  {/* Mentor selector — shown for all roles except teacher and super_admin when class is set */}
+                  {!['teacher', 'super_admin'].includes(editRole) && editTrack && editClass && (
                     <div>
                       <label className="block text-xs font-semibold text-[#0f172a] mb-1">Assign Mentor</label>
                       {loadingEditMentors ? (

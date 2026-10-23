@@ -12,7 +12,8 @@ router.post('/register/step2', registerStep2);
 router.post('/login', login);
 router.post('/refresh', refresh);
 router.post('/logout', logout);
-router.post('/invite', authenticate, authorize('super_admin'), inviteUser);
+// super_admin can invite all roles; student_leader can invite committee and mentor
+router.post('/invite', authenticate, authorize('super_admin', 'student_leader'), inviteUser);
 router.post('/verify-otp', verifyOtp);
 router.post('/set-password', setPassword);
 router.post('/forgot-password', forgotPassword);

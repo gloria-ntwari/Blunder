@@ -37,7 +37,7 @@ export default function DeadlinesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
-  const isAdmin = user && ['super_admin', 'admin', 'school_leader'].includes(user.role);
+  const isAdmin = user && ['super_admin', 'sv_committee', 'teacher', 'student_leader'].includes(user.role);
 
   const fetchMentorsForClass = async (tr, classYr) => {
     if (!tr || !classYr) { setMentorsForClass([]); setTargetMentorId(''); return; }

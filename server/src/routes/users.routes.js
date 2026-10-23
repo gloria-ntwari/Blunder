@@ -9,11 +9,12 @@ const router = express.Router();
 
 router.get('/me', authenticate, getMe);
 router.put('/me', authenticate, upload.single('avatar'), updateMe);
-router.get('/mentor-groups', getMentorGroups); // used in registration (public)
-router.get('/mentors', getMentors);           // mentors by track+class (public)
+router.get('/mentor-groups', getMentorGroups); // public — used in registration
+router.get('/mentors', getMentors);           // public — used in registration
 
-router.get('/', authenticate, authorize('super_admin', 'admin'), getUsers);
-router.get('/:id', authenticate, authorize('super_admin', 'admin'), getUserById);
+// User management: super_admin only
+router.get('/', authenticate, authorize('super_admin'), getUsers);
+router.get('/:id', authenticate, authorize('super_admin'), getUserById);
 router.put('/:id', authenticate, authorize('super_admin'), updateUser);
 router.delete('/:id', authenticate, authorize('super_admin'), deleteUser);
 

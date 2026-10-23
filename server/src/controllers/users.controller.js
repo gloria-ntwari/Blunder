@@ -156,17 +156,21 @@ export const getMentorGroups = async (req, res, next) => {
 
 // ── GET /api/users/mentors?academic_track=IB&class_year=DP1 ───────────────────
 // Returns mentors (role='mentor') who have a mentor_group for the given academic_track.
-// class_year is ignored here because mentor_groups are track-scoped only — we return
-// all mentors in the track and let the UI label them for the user to pick from.
+// When class_year is provided, only mentors whose own class_year matches are returned.
 export const getMentors = async (req, res, next) => {
   try {
-    const { academic_track } = req.query;
+    const { academic_track, class_year } = req.query;
     const params = [];
     const conditions = [`u.role = 'mentor'`];
 
     if (academic_track) {
       params.push(academic_track);
       conditions.push(`mg.academic_track = $${params.length}`);
+    }
+
+    if (class_year) {
+      params.push(class_year);
+      conditions.push(`u.class_year = $${params.length}`);
     }
 
     const where = `WHERE ${conditions.join(' AND ')}`;

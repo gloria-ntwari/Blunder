@@ -182,15 +182,18 @@ export const inviteUser = async (req, res, next) => {
   try {
     let { email, full_name, role, admin_type, academic_track, class_year } = req.body;
 
-    if (!['admin', 'school_leader', 'mentor', 'student'].includes(role))
-      return res.status(400).json({ message: 'Role must be admin, school_leader, mentor, or student' });
+    if (!['sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student'].includes(role))
+      return res.status(400).json({ message: 'Invalid role' });
+
+    // student_leader can only invite mentor and committee
+    if (req.user.role === 'student_leader' && !['mentor', 'committee'].includes(role))
+      return res.status(403).json({ message: 'Student leaders can only invite mentors and committee members' });
 
     email = email.trim().toLowerCase();
     full_name = full_name.trim();
 
-    // Admins (non-school-leader) don't belong to any academic track or class
-    if (role === 'admin') {
-      academic_track = null;
+    // Teachers don't have a class_year (they teach the whole track)
+    if (role === 'teacher') {
       class_year = null;
     }
 

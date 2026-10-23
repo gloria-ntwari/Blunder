@@ -4,14 +4,20 @@ import { uploadImage } from '../config/cloudinary.js';
 // ── GET /api/lost-found ───────────────────────────────────────────────────────
 export const getLostFound = async (req, res, next) => {
   try {
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, post_type, page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
+    const conditions = [];
     const params = [];
-    let where = '';
 
-    if (status === 'unclaimed') { where = 'WHERE lf.is_claimed = FALSE'; }
-    else if (status === 'claimed') { where = 'WHERE lf.is_claimed = TRUE'; }
+    if (status === 'unclaimed') { conditions.push('lf.is_claimed = FALSE'); }
+    else if (status === 'claimed') { conditions.push('lf.is_claimed = TRUE'); }
 
+    if (post_type === 'found' || post_type === 'lost') {
+      params.push(post_type);
+      conditions.push(`lf.post_type = $${params.length}`);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     params.push(limit, offset);
 
     const result = await query(
@@ -22,11 +28,12 @@ export const getLostFound = async (req, res, next) => {
        LEFT JOIN users cu ON lf.claimed_by = cu.id
        ${where}
        ORDER BY lf.created_at DESC
-       LIMIT $1 OFFSET $2`,
+       LIMIT $${params.length - 1} OFFSET $${params.length}`,
       params
     );
 
-    const countResult = await query(`SELECT COUNT(*) FROM lost_found lf ${where}`, []);
+    const countResult = await query(`SELECT COUNT(*) FROM lost_found lf ${where}`,
+      params.slice(0, params.length - 2));
 
     res.json({
       items: result.rows,
@@ -62,20 +69,53 @@ export const getLostFoundById = async (req, res, next) => {
 // ── POST /api/lost-found ──────────────────────────────────────────────────────
 export const createLostFound = async (req, res, next) => {
   try {
-    const { item_name, description, location_found, date_found } = req.body;
+    const { item_name, description, location_found, date_found, post_type = 'found' } = req.body;
     let photo_url = null;
 
     if (req.file) {
       photo_url = await uploadImage(req.file.buffer, 'blunder/lost-found');
     }
 
+    const validType = ['found', 'lost'].includes(post_type) ? post_type : 'found';
+
     const result = await query(
-      `INSERT INTO lost_found (item_name, description, photo_url, location_found, date_found, posted_by)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [item_name, description, photo_url, location_found, date_found || new Date(), req.user.id]
+      `INSERT INTO lost_found (item_name, description, photo_url, location_found, date_found, posted_by, post_type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [item_name, description, photo_url, location_found, date_found || new Date(), req.user.id, validType]
     );
 
     res.status(201).json(result.rows[0]);
+  } catch (err) { next(err); }
+};
+
+// ── PUT /api/lost-found/:id ───────────────────────────────────────────────────
+export const updateLostFound = async (req, res, next) => {
+  try {
+    const { item_name, description, location_found, date_found } = req.body;
+    let photo_url;
+
+    if (req.file) {
+      photo_url = await uploadImage(req.file.buffer, 'blunder/lost-found');
+    }
+
+    const setClauses = [];
+    const params = [];
+
+    if (item_name) { params.push(item_name); setClauses.push(`item_name = $${params.length}`); }
+    if (description !== undefined) { params.push(description); setClauses.push(`description = $${params.length}`); }
+    if (location_found) { params.push(location_found); setClauses.push(`location_found = $${params.length}`); }
+    if (date_found) { params.push(date_found); setClauses.push(`date_found = $${params.length}`); }
+    if (photo_url) { params.push(photo_url); setClauses.push(`photo_url = $${params.length}`); }
+
+    if (!setClauses.length) return res.status(400).json({ message: 'Nothing to update' });
+
+    params.push(req.params.id);
+    await query(
+      `UPDATE lost_found SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${params.length}`,
+      params
+    );
+
+    res.json({ message: 'Updated' });
   } catch (err) { next(err); }
 };
 
