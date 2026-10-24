@@ -15,6 +15,7 @@ import lostFoundRoutes from './src/routes/lostandfound.routes.js';
 import eventRoutes from './src/routes/events.routes.js';
 import deadlineRoutes from './src/routes/deadlines.routes.js';
 import notificationRoutes from './src/routes/notifications.routes.js';
+import mentorGroupRoutes from './src/routes/mentorGroups.routes.js';
 import { initSocket } from './src/socket/index.js';
 
 dotenv.config();
@@ -61,6 +62,7 @@ app.use('/api/lost-found', lostFoundRoutes);
 app.use('/api/events', eventRoutes);
 app.use('/api/deadlines', deadlineRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/mentor-groups', mentorGroupRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));

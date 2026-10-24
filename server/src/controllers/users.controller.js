@@ -8,10 +8,9 @@ export const getMe = async (req, res, next) => {
       `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
               u.class_year, u.avatar_url, u.is_verified,
               mg.id as mentor_group_id,
-              concat(mg_mentor.full_name, '''s Group') as mentor_group_name
+              mg.name as mentor_group_name
        FROM users u
        LEFT JOIN mentor_groups mg ON u.mentor_group_id = mg.id
-       LEFT JOIN users mg_mentor ON mg.mentor_user_id = mg_mentor.id
        WHERE u.id = $1`,
       [req.user.id]
     );
@@ -22,19 +21,61 @@ export const getMe = async (req, res, next) => {
 // ── PUT /api/users/me ─────────────────────────────────────────────────────────
 export const updateMe = async (req, res, next) => {
   try {
-    const { full_name } = req.body;
+    const { full_name, email, academic_track, class_year, mentor_group_id } = req.body;
     let avatar_url = req.user.avatar_url;
 
     if (req.file) {
       avatar_url = await uploadImage(req.file.buffer, 'blunder/avatars');
     }
 
+    const normalizedEmail = email?.trim().toLowerCase() || req.user.email;
+    if (normalizedEmail !== req.user.email) {
+      const existing = await query(
+        'SELECT id FROM users WHERE LOWER(email) = $1 AND id <> $2',
+        [normalizedEmail, req.user.id]
+      );
+      if (existing.rows.length) return res.status(409).json({ message: 'Email already in use' });
+    }
+
+    const selectedGroupId = mentor_group_id || null;
+    if (selectedGroupId) {
+      const group = await query(
+        'SELECT id, academic_track, class_year FROM mentor_groups WHERE id = $1',
+        [selectedGroupId]
+      );
+      if (!group.rows.length) return res.status(400).json({ message: 'Selected mentor group was not found' });
+      if (academic_track && group.rows[0].academic_track !== academic_track) {
+        return res.status(400).json({ message: 'Mentor group does not match the selected academic track' });
+      }
+      if (class_year && group.rows[0].class_year !== class_year) {
+        return res.status(400).json({ message: 'Mentor group does not match the selected class / year' });
+      }
+    }
+
     await query(
-      `UPDATE users SET full_name = $1, avatar_url = $2, updated_at = NOW() WHERE id = $3`,
-      [full_name || req.user.full_name, avatar_url, req.user.id]
+      `UPDATE users SET
+        full_name = COALESCE(NULLIF($1, ''), full_name),
+        email = $2,
+        academic_track = $3,
+        class_year = $4,
+        mentor_group_id = $5,
+        avatar_url = $6,
+        updated_at = NOW()
+       WHERE id = $7`,
+      [full_name?.trim(), normalizedEmail, academic_track || null, class_year || null, selectedGroupId, avatar_url, req.user.id]
     );
 
-    res.json({ message: 'Profile updated' });
+    const updated = await query(
+      `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
+              u.class_year, u.avatar_url, u.is_verified,
+              mg.id AS mentor_group_id, mg.name AS mentor_group_name
+       FROM users u
+       LEFT JOIN mentor_groups mg ON u.mentor_group_id = mg.id
+       WHERE u.id = $1`,
+      [req.user.id]
+    );
+
+    res.json({ message: 'Profile updated', user: updated.rows[0] });
   } catch (err) { next(err); }
 };
 
@@ -45,6 +86,12 @@ export const getUsers = async (req, res, next) => {
     const offset = (page - 1) * limit;
     const params = [];
     const conditions = [];
+
+    // Never expose unrelated roles to a student leader, regardless of the
+    // filter sent by the client.
+    if (req.user.role === 'student_leader') {
+      conditions.push(`u.role IN ('student_leader', 'committee', 'mentor')`);
+    }
 
     if (role) { params.push(role); conditions.push(`u.role = $${params.length}`); }
     if (academic_track) { params.push(academic_track); conditions.push(`u.academic_track = $${params.length}`); }
@@ -58,10 +105,9 @@ export const getUsers = async (req, res, next) => {
       `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
               u.class_year, u.avatar_url, u.is_verified, u.is_active, u.created_at,
               u.mentor_group_id,
-              concat(mg_mentor.full_name, '''s Group') as mentor_group_name
+              mg.name as mentor_group_name
        FROM users u
        LEFT JOIN mentor_groups mg ON u.mentor_group_id = mg.id
-       LEFT JOIN users mg_mentor ON mg.mentor_user_id = mg_mentor.id
        ${where}
        ORDER BY u.created_at DESC
        LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -112,6 +158,16 @@ export const updateUser = async (req, res, next) => {
        WHERE id = $8`,
       [full_name, role, admin_type ?? null, academic_track ?? null, class_year ?? null, mentor_group_id ?? null, is_active, req.params.id]
     );
+
+    // If role is mentor, keep mentor_groups.mentor_user_id in sync
+    const userRole = role || (await query('SELECT role FROM users WHERE id = $1', [req.params.id])).rows[0]?.role;
+    if (userRole === 'mentor') {
+      await query('UPDATE mentor_groups SET mentor_user_id = NULL WHERE mentor_user_id = $1', [req.params.id]);
+      if (mentor_group_id) {
+        await query('UPDATE mentor_groups SET mentor_user_id = $1 WHERE id = $2', [req.params.id, mentor_group_id]);
+      }
+    }
+
     res.json({ message: 'User updated' });
   } catch (err) { next(err); }
 };
@@ -129,25 +185,32 @@ export const deleteUser = async (req, res, next) => {
 // ── GET /api/users/mentor-groups ──────────────────────────────────────────────
 export const getMentorGroups = async (req, res, next) => {
   try {
-    const { academic_track } = req.query;
+    const { academic_track, class_year } = req.query;
     const params = [];
-    let where = '';
+    const conditions = [];
+
     if (academic_track) {
       params.push(academic_track);
-      where = `WHERE mg.academic_track = $1`;
+      conditions.push(`mg.academic_track = $${params.length}`);
+    }
+    if (class_year) {
+      params.push(class_year);
+      conditions.push(`mg.class_year = $${params.length}`);
     }
 
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const result = await query(
-      `SELECT mg.id, mg.academic_track,
+      `SELECT mg.id, mg.name, mg.academic_track, mg.class_year,
+              mg.mentor_user_id,
               u.full_name as mentor_name,
-              concat(u.full_name, '''s Group') as group_name,
-              COUNT(students.id) as student_count
+              COUNT(students.id)::int as student_count
        FROM mentor_groups mg
-       JOIN users u ON mg.mentor_user_id = u.id
+       LEFT JOIN users u ON mg.mentor_user_id = u.id
        LEFT JOIN users students ON students.mentor_group_id = mg.id
        ${where}
-       GROUP BY mg.id, mg.academic_track, u.full_name
-       ORDER BY u.full_name`,
+       GROUP BY mg.id, mg.name, mg.academic_track, mg.class_year, mg.mentor_user_id, u.full_name
+       ORDER BY mg.name`,
       params
     );
     res.json(result.rows);
@@ -178,7 +241,7 @@ export const getMentors = async (req, res, next) => {
     const result = await query(
       `SELECT u.id AS mentor_user_id, u.full_name, u.email, u.academic_track,
               mg.id AS mentor_group_id,
-              concat(u.full_name, '''s Group') AS group_name
+              mg.name AS group_name
        FROM users u
        JOIN mentor_groups mg ON mg.mentor_user_id = u.id
        ${where}

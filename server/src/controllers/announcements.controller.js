@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { uploadImage } from '../config/cloudinary.js';
 import { emitAnnouncement } from '../socket/index.js';
 
 const canPost = (user) =>
@@ -72,6 +73,7 @@ export const createAnnouncement = async (req, res, next) => {
   try {
     const { title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent } = req.body;
     const u = req.user;
+    const image_url = req.file ? await uploadImage(req.file.buffer, 'blunder/announcements') : null;
 
     // Mentors can only post mentor_group announcements for their own group
     if (u.role === 'mentor') {
@@ -79,9 +81,9 @@ export const createAnnouncement = async (req, res, next) => {
         return res.status(403).json({ message: 'Mentors can only post mentor-group announcements' });
 
       const myGroup = await query(
-        'SELECT id FROM mentor_groups WHERE mentor_user_id = $1', [u.id]
+        'SELECT id FROM mentor_groups WHERE mentor_user_id = $1 OR id = $2', [u.id, u.mentor_group_id || null]
       );
-      if (!myGroup.rows.length || myGroup.rows[0].id !== target_mentor_group_id)
+      if (!myGroup.rows.length || (target_mentor_group_id && !myGroup.rows.some(r => r.id === target_mentor_group_id)))
         return res.status(403).json({ message: 'You can only post for your own mentor group' });
     }
 
@@ -96,10 +98,11 @@ export const createAnnouncement = async (req, res, next) => {
 
     const result = await query(
       `INSERT INTO announcements
-         (title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+         (title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, image_url, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [title, body, scope || 'school_wide', target_track || null, target_class || null,
-       target_mentor_group_id || null, is_pinned || false, is_urgent || false, u.id]
+       target_mentor_group_id || null, is_pinned === 'true' || is_pinned === true,
+       is_urgent === 'true' || is_urgent === true, image_url, u.id]
     );
 
     const io = req.app.get('io');
@@ -113,13 +116,16 @@ export const createAnnouncement = async (req, res, next) => {
 export const updateAnnouncement = async (req, res, next) => {
   try {
     const { title, body, is_pinned, is_urgent } = req.body;
+    const image_url = req.file ? await uploadImage(req.file.buffer, 'blunder/announcements') : undefined;
     const result = await query(
       `UPDATE announcements SET
          title = COALESCE($1, title), body = COALESCE($2, body),
          is_pinned = COALESCE($3, is_pinned), is_urgent = COALESCE($4, is_urgent),
-         updated_at = NOW()
-       WHERE id = $5 AND created_by = $6 RETURNING *`,
-      [title, body, is_pinned, is_urgent, req.params.id, req.user.id]
+         image_url = COALESCE($5, image_url), updated_at = NOW()
+       WHERE id = $6 AND created_by = $7 RETURNING *`,
+      [title, body, is_pinned === undefined ? null : is_pinned === 'true' || is_pinned === true,
+       is_urgent === undefined ? null : is_urgent === 'true' || is_urgent === true,
+       image_url, req.params.id, req.user.id]
     );
     if (!result.rows.length)
       return res.status(404).json({ message: 'Not found or not your announcement' });

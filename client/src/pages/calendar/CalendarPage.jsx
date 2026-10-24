@@ -70,7 +70,7 @@ export default function CalendarPage() {
     if (!track || !classYr) { setMentorsForClass([]); setTargetMentorId(''); return; }
     setLoadingMentors(true);
     try {
-      const res = await api.get(`/users/mentors?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
+      const res = await api.get(`/mentor-groups?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
       setMentorsForClass(res.data || []);
       setTargetMentorId('');
     } catch {
@@ -103,6 +103,10 @@ export default function CalendarPage() {
     setTargetTrack(ev.target_track || user?.academic_track || 'IB');
     setTargetClass(ev.target_class || '');
     setTargetMentorId(''); setMentorsForClass([]);
+    if (ev.target_class) {
+      fetchMentorsForClass(ev.target_track || user?.academic_track || 'IB', ev.target_class)
+        .then(() => setTargetMentorId(ev.target_mentor_group_id || ''));
+    }
     setEventImage(null);
     setImagePreview(ev.image_url || '');
     setShowModal(true);
@@ -123,7 +127,7 @@ export default function CalendarPage() {
     if (scope === 'academic') {
       formData.append('target_track', targetTrack);
       if (targetClass) formData.append('target_class', targetClass);
-      if (targetClass && targetMentorId) formData.append('target_mentor_id', targetMentorId);
+      if (targetClass && targetMentorId) formData.append('target_mentor_group_id', targetMentorId);
     }
     if (scope === 'mentor_group' && user?.mentor_group_id) formData.append('target_mentor_group_id', user.mentor_group_id);
     if (eventImage) formData.append('image', eventImage);
@@ -475,7 +479,7 @@ export default function CalendarPage() {
                         >
                           <option value="">All mentor groups in {targetClass}</option>
                           {mentorsForClass.map((m) => (
-                            <option key={m.id} value={m.id}>{m.full_name}'s Group</option>
+                            <option key={m.id} value={m.id}>{m.name}</option>
                           ))}
                         </select>
                       ) : (

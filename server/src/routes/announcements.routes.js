@@ -1,5 +1,6 @@
 import express from 'express';
 import { authenticate, authorize } from '../middlewares/auth.js';
+import { upload } from '../middlewares/upload.js';
 import {
   getAnnouncements, getAnnouncementById, createAnnouncement,
   updateAnnouncement, deleteAnnouncement,
@@ -13,10 +14,10 @@ router.get('/:id', authenticate, getAnnouncementById);
 // All staff roles can post — scope restrictions enforced in controller/client
 router.post('/', authenticate, authorize(
   'super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor'
-), createAnnouncement);
+), upload.single('image'), createAnnouncement);
 router.put('/:id', authenticate, authorize(
   'super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor'
-), updateAnnouncement);
+), upload.single('image'), updateAnnouncement);
 router.delete('/:id', authenticate, authorize(
   'super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor'
 ), deleteAnnouncement);

@@ -50,9 +50,9 @@ export default function OtpVerifyPage() {
       <div className="relative md:w-1/2 min-h-[340px] md:min-h-screen bg-[#1a1a2e] flex flex-col justify-between p-8 md:p-14 text-white overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center opacity-60"
-          style={{ backgroundImage: `url('/assets/louisenlund_castle.jpg')` }}
+          style={{ backgroundImage: `url('/assets/image2.jpeg')` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b6b]/95 via-[#1a3a8a]/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b6b]/95 via-[#1a3a8a]/10 to-transparent" />
 
         {/* Brand */}
         <div className="relative z-10 flex items-center gap-3">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
@@ -9,23 +9,31 @@ import {
   Calendar,
   Clock,
   Users,
+  UsersRound,
   Settings,
   LogOut,
+  X,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen = false, onClose = () => {} }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuthStore();
-  const { unreadCount } = useNotificationStore();
+  const { notifications } = useNotificationStore();
+  const unreadAnnouncementCount = notifications.filter(
+    (notification) => notification.type === 'announcement' && !notification.is_read
+  ).length;
 
   const role = user?.role;
 
   // Role groups
   const canManageUsers = ['super_admin', 'student_leader'].includes(role);
   const showUserMgmt   = canManageUsers;
+  const mentorGroupsActive = location.pathname === '/admin/users' && location.search.includes('section=mentor-groups');
+  const userManagementActive = location.pathname === '/admin/users' && !mentorGroupsActive;
 
   const handleLogout = async () => {
     await logout();
@@ -42,12 +50,27 @@ export default function Sidebar() {
   );
 
   return (
-    <aside className="border border-slate-200/60 w-64 bg-white flex flex-col justify-between shrink-0 h-full select-none z-20 font-['Outfit'] rounded-lg overflow-hidden">
+    <>
+      {isOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={onClose}
+          className="fixed inset-0 bg-slate-950/30 z-30 lg:hidden cursor-default"
+        />
+      )}
+      <aside className={`fixed inset-y-0 left-0 w-[min(18rem,calc(100vw-2rem))] bg-white flex flex-col justify-between select-none z-40 font-['Outfit'] rounded-r-lg overflow-hidden border border-slate-200/60 shadow-xl transition-transform duration-200 lg:relative lg:inset-auto lg:z-20 lg:w-64 lg:h-full lg:rounded-lg lg:shadow-none lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 lg:hidden">
+          <span className="text-sm font-semibold text-[#0f172a]">Navigation</span>
+          <button type="button" onClick={onClose} aria-label="Close navigation" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       <div>
         <div className="px-3 py-4 space-y-1">
 
           {/* Overview — everyone */}
-          <NavLink to="/dashboard" className={({ isActive }) => navLinkClass(isActive)}>
+          <NavLink to="/dashboard" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
                 {isActive && indicator}
@@ -59,7 +82,7 @@ export default function Sidebar() {
 
           {/* Food Menu — hidden for nobody (view is open to all, admin actions gated in page) */}
           {role !== 'teacher' && (
-            <NavLink to="/food-menu" className={({ isActive }) => navLinkClass(isActive)}>
+            <NavLink to="/food-menu" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
               {({ isActive }) => (
                 <>
                   {isActive && indicator}
@@ -71,7 +94,7 @@ export default function Sidebar() {
           )}
 
           {/* Announcements — everyone */}
-          <NavLink to="/announcements" className={({ isActive }) =>
+          <NavLink to="/announcements" onClick={onClose} className={({ isActive }) =>
             `relative flex items-center justify-between px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
               isActive ? 'bg-[#1a2b49] text-white shadow-xs' : 'text-[rgb(52,58,64)] hover:bg-slate-50'
             }`
@@ -83,9 +106,9 @@ export default function Sidebar() {
                   <Bell className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                   <span>{t('nav.announcements', 'Announcements')}</span>
                 </div>
-                {unreadCount > 0 && (
-                  <span className="flex items-center justify-center font-bold bg-[#f97316] text-white rounded-full h-4 w-4 text-[11px]">
-                    {unreadCount}
+                {unreadAnnouncementCount > 0 && (
+                  <span className="flex items-center justify-center font-bold bg-[#f97316] text-white rounded-full h-4 w-4 text-[11px] animate-pulse">
+                    {unreadAnnouncementCount}
                   </span>
                 )}
               </>
@@ -93,7 +116,7 @@ export default function Sidebar() {
           </NavLink>
 
           {/* Lost & Found — everyone */}
-          <NavLink to="/lost-found" className={({ isActive }) => navLinkClass(isActive)}>
+          <NavLink to="/lost-found" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
                 {isActive && indicator}
@@ -104,7 +127,7 @@ export default function Sidebar() {
           </NavLink>
 
           {/* Calendar — everyone */}
-          <NavLink to="/calendar" className={({ isActive }) => navLinkClass(isActive)}>
+          <NavLink to="/calendar" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
                 {isActive && indicator}
@@ -115,7 +138,7 @@ export default function Sidebar() {
           </NavLink>
 
           {/* Deadlines — everyone */}
-          <NavLink to="/deadlines" className={({ isActive }) => navLinkClass(isActive)}>
+          <NavLink to="/deadlines" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
                 {isActive && indicator}
@@ -127,24 +150,35 @@ export default function Sidebar() {
 
           {/* User Management — super_admin only */}
           {showUserMgmt && (
-            <div className="pt-2">
-              <NavLink to="/admin/users" className={({ isActive }) => navLinkClass(isActive)}>
-                {({ isActive }) => (
+            <div className="pt-0.5 gap-y-1 flex flex-col">
+              <NavLink to="/admin/users" onClick={onClose} className={() => navLinkClass(userManagementActive)}>
+                {() => (
                   <>
-                    {isActive && indicator}
-                    <Users className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                    {userManagementActive && indicator}
+                    <Users className={`w-4 h-4 shrink-0 ${userManagementActive ? 'text-white' : 'text-slate-500'}`} />
                     <span>User Management</span>
                   </>
                 )}
               </NavLink>
+              <NavLink to="/admin/users?section=mentor-groups" onClick={onClose} className={() => navLinkClass(mentorGroupsActive)}>
+                {() => (
+                  <>
+                    {mentorGroupsActive && indicator}
+                    <UsersRound className={`w-4 h-4 shrink-0 ${mentorGroupsActive ? 'text-white' : 'text-slate-500'}`} />
+                    <span>Mentor Groups</span>
+                  </>
+                )}
+              </NavLink>
             </div>
+            
           )}
+          
         </div>
       </div>
 
       {/* Footer */}
       <div className="p-3 border-t border-slate-100 space-y-1">
-        <NavLink to="/profile" className={({ isActive }) =>
+        <NavLink to="/profile" onClick={onClose} className={({ isActive }) =>
           `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-colors ${
             isActive ? 'bg-slate-100 text-[#0f172a]' : 'text-[rgb(52,58,64)] hover:bg-slate-50'
           }`
@@ -159,6 +193,7 @@ export default function Sidebar() {
           <span>Sign Out</span>
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

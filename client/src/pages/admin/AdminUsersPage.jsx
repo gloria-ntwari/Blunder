@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Users,
@@ -10,6 +11,9 @@ import {
   Clock,
   AlertTriangle,
   Pencil,
+  Edit2,
+  UsersRound,
+  Plus,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
@@ -22,6 +26,8 @@ import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 export default function AdminUsersPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isMentorGroupsView = searchParams.get('section') === 'mentor-groups';
 
   const [users, setUsers] = useState([]);
   const [roleFilter, setRoleFilter] = useState('');
@@ -31,10 +37,13 @@ export default function AdminUsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const PAGE_SIZE = 8;
+  const visibleRoles = user?.role === 'student_leader'
+    ? ['', 'student_leader', 'committee', 'mentor']
+    : ['', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student'];
 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [invitedSuccessInfo, setInvitedSuccessInfo] = useState(null);
-  const [inviteRole, setInviteRole] = useState('sv_committee');
+  const [inviteRole, setInviteRole] = useState(user?.role === 'student_leader' ? 'student_leader' : 'sv_committee');
   const [inviteAdminType, setInviteAdminType] = useState('');
   const [inviteTrack, setInviteTrack] = useState('IB');
   const [inviteClass, setInviteClass] = useState('DP2');
@@ -59,6 +68,26 @@ export default function AdminUsersPage() {
   const [editActive, setEditActive] = useState(true);
   const [editing, setEditing] = useState(false);
   const [confirmState, setConfirmState] = useState({ open: false, id: null });
+
+  // ── Mentor Groups management ──
+  const [showMentorGroupsPanel, setShowMentorGroupsPanel] = useState(searchParams.get('section') === 'mentor-groups');
+  const [mentorGroupsList, setMentorGroupsList] = useState([]);
+  const [loadingMentorGroups, setLoadingMentorGroups] = useState(false);
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupTrack, setNewGroupTrack] = useState('IB');
+  const [newGroupClass, setNewGroupClass] = useState('DP2');
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [editingGroup, setEditingGroup] = useState(null);
+  const [confirmDeleteGroup, setConfirmDeleteGroup] = useState({ open: false, id: null });
+
+  // ── Mentor group selectors for invite/edit modals ──
+  const [inviteMentorGroups, setInviteMentorGroups] = useState([]);
+  const [loadingInviteMentorGroups, setLoadingInviteMentorGroups] = useState(false);
+  const [inviteMentorGroupId, setInviteMentorGroupId] = useState('');
+  const [editMentorGroups, setEditMentorGroups] = useState([]);
+  const [loadingEditMentorGroups, setLoadingEditMentorGroups] = useState(false);
+  const [editMentorGroupId, setEditMentorGroupId] = useState('');
 
   useEffect(() => { setCurrentPage(1); }, [roleFilter, searchTerm]);
   useEffect(() => { fetchUsers(); }, [roleFilter, searchTerm, currentPage]);
@@ -99,8 +128,106 @@ export default function AdminUsersPage() {
     }
   };
 
+  const fetchMentorGroupsList = async () => {
+    setLoadingMentorGroups(true);
+    try {
+      const res = await api.get('/mentor-groups');
+      setMentorGroupsList(res.data || []);
+    } catch {
+      setMentorGroupsList([]);
+    } finally {
+      setLoadingMentorGroups(false);
+    }
+  };
+
+  useEffect(() => {
+    const mentorGroupsRequested = searchParams.get('section') === 'mentor-groups';
+    setShowMentorGroupsPanel(mentorGroupsRequested);
+    if (mentorGroupsRequested) fetchMentorGroupsList();
+  }, [searchParams]);
+
+  const fetchInviteMentorGroupsForClass = async (track, classYr) => {
+    if (!track || !classYr) { setInviteMentorGroups([]); setInviteMentorGroupId(''); return; }
+    setLoadingInviteMentorGroups(true);
+    try {
+      const res = await api.get(`/mentor-groups?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
+      const list = res.data || [];
+      setInviteMentorGroups(list);
+      setInviteMentorGroupId(list.length > 0 ? list[0].id : '');
+    } catch {
+      setInviteMentorGroups([]);
+      setInviteMentorGroupId('');
+    } finally {
+      setLoadingInviteMentorGroups(false);
+    }
+  };
+
+  const fetchEditMentorGroupsForClass = async (track, classYr) => {
+    if (!track || !classYr) { setEditMentorGroups([]); setEditMentorGroupId(''); return; }
+    setLoadingEditMentorGroups(true);
+    try {
+      const res = await api.get(`/mentor-groups?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
+      const list = res.data || [];
+      setEditMentorGroups(list);
+    } catch {
+      setEditMentorGroups([]);
+      setEditMentorGroupId('');
+    } finally {
+      setLoadingEditMentorGroups(false);
+    }
+  };
+
+  const handleCreateMentorGroup = async (e) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+    setCreatingGroup(true);
+    try {
+      const groupPayload = {
+        name: newGroupName.trim(),
+        academic_track: newGroupTrack,
+        class_year: newGroupClass,
+        mentor_user_id: editingGroup?.mentor_user_id || null,
+      };
+      if (editingGroup) {
+        await api.put(`/mentor-groups/${editingGroup.id}`, groupPayload);
+        toast.success('Mentor group updated!');
+      } else {
+        await api.post('/mentor-groups', groupPayload);
+        toast.success('Mentor group created!');
+      }
+      setShowCreateGroupModal(false);
+      setEditingGroup(null);
+      setNewGroupName('');
+      fetchMentorGroupsList();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create mentor group');
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  const openEditGroup = (group) => {
+    setEditingGroup(group);
+    setNewGroupName(group.name || '');
+    setNewGroupTrack(group.academic_track || 'IB');
+    setNewGroupClass(group.class_year || getClassesForTrack(group.academic_track || 'IB')[0]?.value || '');
+    setShowCreateGroupModal(true);
+  };
+
+  const doDeleteMentorGroup = async () => {
+    try {
+      await api.delete(`/mentor-groups/${confirmDeleteGroup.id}`);
+      toast.success('Mentor group deleted');
+      fetchMentorGroupsList();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete mentor group');
+    } finally {
+      setConfirmDeleteGroup({ open: false, id: null });
+    }
+  };
+
   const openInviteModal = () => {
-    setInviteRole('sv_committee');
+    setInviteRole(user?.role === 'student_leader' ? 'student_leader' : 'sv_committee');
     setInviteTrack('IB');
     const firstClass = getClassesForTrack('IB')[0]?.value || 'DP2';
     setInviteClass(firstClass);
@@ -108,9 +235,12 @@ export default function AdminUsersPage() {
     setInviteEmail('');
     setInviteMentors([]);
     setInviteMentorId('');
+    setInviteMentorGroups([]);
+    setInviteMentorGroupId('');
     setShowInviteModal(true);
-    // Load mentors immediately for the default track and class
+    // Load mentors and mentor groups for the default track and class
     fetchInviteMentors('IB', firstClass);
+    fetchInviteMentorGroupsForClass('IB', firstClass);
   };
 
   const fetchUsers = async () => {
@@ -139,7 +269,11 @@ export default function AdminUsersPage() {
         admin_type: inviteRole === 'admin' ? inviteAdminType : null,
         academic_track: inviteTrack,
         class_year: inviteClass || null,
-        mentor_group_id: !['teacher', 'super_admin'].includes(inviteRole) ? (inviteMentorId || null) : null,
+        mentor_group_id: inviteRole === 'mentor'
+          ? (inviteMentorGroupId || null)
+          : !['teacher', 'super_admin'].includes(inviteRole)
+            ? (inviteMentorGroupId || inviteMentorId || null)
+            : null,
       });
 
       setShowInviteModal(false);
@@ -191,15 +325,20 @@ export default function AdminUsersPage() {
     setEditTrack(u.academic_track || '');
     setEditClass(u.class_year || '');
     setEditMentors([]);
+    setEditMentorGroups([]);
     setEditActive(u.is_active !== false);
     setShowEditModal(true);
-    // Load mentors then pre-select the user's current mentor_group_id
+    // Load mentors and mentor groups, then pre-select
     if (!['teacher', 'super_admin'].includes(u.role) && u.academic_track) {
       fetchEditMentors(u.academic_track, u.class_year || '').then(() => {
         setEditMentorId(u.mentor_group_id || '');
       });
+      fetchEditMentorGroupsForClass(u.academic_track, u.class_year || '').then(() => {
+        setEditMentorGroupId(u.mentor_group_id || '');
+      });
     } else {
       setEditMentorId(u.mentor_group_id || '');
+      setEditMentorGroupId(u.mentor_group_id || '');
     }
   };
 
@@ -214,7 +353,11 @@ export default function AdminUsersPage() {
         admin_type: editRole === 'admin' ? editAdminType : null,
         academic_track: editRole === 'super_admin' ? null : editTrack || null,
         class_year: editRole === 'super_admin' ? null : editClass || null,
-        mentor_group_id: !['teacher', 'super_admin'].includes(editRole) ? (editMentorId || null) : null,
+        mentor_group_id: editRole === 'mentor'
+          ? (editMentorGroupId || null)
+          : !['teacher', 'super_admin'].includes(editRole)
+            ? (editMentorGroupId || editMentorId || null)
+            : null,
         is_active: editActive,
       });
       toast.success('User updated successfully');
@@ -235,29 +378,119 @@ export default function AdminUsersPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-[30px] font-semibold leading-[37.5px] text-[#0f172a] tracking-tight">
-              User Management
+              {isMentorGroupsView ? 'Mentor Groups' : 'User Management'}
             </h1>
           </div>
           <p className="text-[16px] font-normal leading-[24px] text-[#64748b] mt-0.5">
-            Manage students, invite staff and mentors, and manage user roles.
+            {isMentorGroupsView
+              ? 'Create and manage mentor groups for students and mentors.'
+              : 'Manage students, invite staff and mentors, and manage user roles.'}
           </p>
         </div>
 
-        {['super_admin', 'student_leader'].includes(user?.role) && (
-          <button
-            onClick={openInviteModal}
-            className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto cursor-pointer"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Invite Staff / User</span>
-          </button>
+        {!isMentorGroupsView && ['super_admin', 'student_leader'].includes(user?.role) && (
+          <div className="flex items-center gap-2 self-start md:self-auto">
+            <button
+              onClick={openInviteModal}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Invite Staff / User</span>
+            </button>
+          </div>
         )}
       </div>
 
+      {/* Mentor Groups Panel */}
+      {showMentorGroupsPanel && (
+        <div className="bg-white rounded-lg border border-slate-200/70 shadow-xs overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <UsersRound className="w-4 h-4 text-[#2383c9]" />
+              <h3 className="font-bold text-sm text-[#0f172a]">Mentor Groups</h3>
+              <span className="text-[11px] text-[#64748b]">({mentorGroupsList.length})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setNewGroupName('');
+                  setEditingGroup(null);
+                  setNewGroupTrack('IB');
+                  setNewGroupClass(getClassesForTrack('IB')[0]?.value || 'DP2');
+                  setShowCreateGroupModal(true);
+                }}
+                className="flex items-center gap-1 px-3 py-1.5 bg-[#1a2b49] hover:bg-[#14223b] text-white text-[11px] font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add Group</span>
+              </button>
+
+            </div>
+          </div>
+
+          {loadingMentorGroups ? (
+            <div className="text-center py-6 text-xs text-[#64748b]">Loading mentor groups...</div>
+          ) : mentorGroupsList.length === 0 ? (
+            <div className="text-center py-6 text-xs text-[#64748b]">
+              No mentor groups created yet. Click "Add Group" to create one.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#1a2b49] text-[10px] text-white uppercase tracking-wider font-semibold">
+                  <tr>
+                    <th className="py-2.5 px-5">Group Name</th>
+                    <th className="py-2.5 px-5">Track</th>
+                    <th className="py-2.5 px-5">Class</th>
+                    <th className="py-2.5 px-5">Assigned Mentor</th>
+                    <th className="py-2.5 px-5">Students</th>
+                    <th className="py-2.5 px-5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {mentorGroupsList.map((g) => (
+                    <tr key={g.id} className="hover:bg-[#f8fafb] transition-colors">
+                      <td className="py-2.5 px-5 font-semibold text-[#0f172a]">{g.name}</td>
+                      <td className="py-2.5 px-5">{g.academic_track || '—'}</td>
+                      <td className="py-2.5 px-5">{g.class_year || '—'}</td>
+                      <td className="py-2.5 px-5">
+                        {g.mentor_name ? (
+                          <span className="text-[#0f172a]">{g.mentor_name}</span>
+                        ) : (
+                          <span className="text-[#64748b] italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-5">{g.student_count}</td>
+                      <td className="py-2.5 px-5 text-right">
+                        <button
+                          onClick={() => openEditGroup(g)}
+                          className="p-1.5 mr-1 text-[#64748b] hover:text-[#2383c9] hover:bg-[#e4f2fe] rounded-lg transition-colors cursor-pointer"
+                          title="Edit group"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteGroup({ open: true, id: g.id })}
+                          className="p-1.5 text-[#64748b] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          title="Delete group"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isMentorGroupsView && <>
       {/* Filter and Search */}
       <div className="bg-white p-4 rounded-lg border border-slate-200/70 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-          {['', 'super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student'].map((r) => (
+          {visibleRoles.map((r) => (
             <button
               key={r}
               onClick={() => setRoleFilter(r)}
@@ -447,6 +680,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
+      </>}
 
       {/* Invite Modal */}
       {showInviteModal && (
@@ -488,23 +722,25 @@ export default function AdminUsersPage() {
                   onChange={(e) => {
                     const nextRole = e.target.value;
                     setInviteRole(nextRole);
-                    // teacher only has track, no class/mentor
                     if (nextRole === 'teacher') {
                       setInviteClass('');
                       setInviteMentors([]);
                       setInviteMentorId('');
+                      setInviteMentorGroups([]);
+                      setInviteMentorGroupId('');
                     } else if (inviteTrack) {
                       fetchInviteMentors(inviteTrack, inviteClass);
+                      fetchInviteMentorGroupsForClass(inviteTrack, inviteClass);
                     }
                   }}
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                 >
-                  <option value="sv_committee">SV &amp; Committee</option>
-                  <option value="teacher">Teacher</option>
-                  <option value="student_leader">Student Leader</option>
-                  <option value="committee">Committee</option>
-                  <option value="mentor">Mentor</option>
-                  <option value="student">Student</option>
+                  {(user?.role === 'student_leader'
+                    ? ['student_leader', 'committee', 'mentor']
+                    : ['sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student']
+                  ).map((role) => (
+                    <option key={role} value={role}>{role === 'sv_committee' ? 'SV & Committee' : role.replace('_', ' ')}</option>
+                  ))}
                 </select>
               </div>
 
@@ -520,7 +756,10 @@ export default function AdminUsersPage() {
                         const classes = getClassesForTrack(nextTrack);
                         const firstClass = classes[0]?.value || '';
                         setInviteClass(firstClass);
-                        if (inviteRole !== 'teacher') fetchInviteMentors(nextTrack, firstClass);
+                        if (inviteRole !== 'teacher') {
+                          fetchInviteMentors(nextTrack, firstClass);
+                          fetchInviteMentorGroupsForClass(nextTrack, firstClass);
+                        }
                       }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                     >
@@ -540,7 +779,10 @@ export default function AdminUsersPage() {
                           onChange={(e) => {
                             const nextClass = e.target.value;
                             setInviteClass(nextClass);
-                            if (inviteRole !== 'teacher') fetchInviteMentors(inviteTrack, nextClass);
+                            if (inviteRole !== 'teacher') {
+                              fetchInviteMentors(inviteTrack, nextClass);
+                              fetchInviteMentorGroupsForClass(inviteTrack, nextClass);
+                            }
                           }}
                           className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                         >
@@ -551,26 +793,55 @@ export default function AdminUsersPage() {
                         </select>
                       </div>
 
-                      {/* Mentor selector for non-teacher roles */}
-                      {inviteClass && (
+                      {/* Mentor Group selector — for mentor role, assign them to a mentor group in that class */}
+                      {inviteClass && inviteRole === 'mentor' && (
                         <div>
-                          <label className="block text-xs font-semibold text-[#0f172a] mb-1">Assign to Mentor</label>
-                          {loadingInviteMentors ? (
-                            <div className="text-xs text-[#64748b] py-1">Loading mentors...</div>
-                          ) : inviteMentors.length > 0 ? (
+                          <label className="block text-xs font-semibold text-[#0f172a] mb-1">Assign to Mentor Group</label>
+                          {loadingInviteMentorGroups ? (
+                            <div className="text-xs text-[#64748b] py-1">Loading mentor groups...</div>
+                          ) : inviteMentorGroups.length > 0 ? (
                             <select
-                              value={inviteMentorId}
-                              onChange={(e) => setInviteMentorId(e.target.value)}
+                              value={inviteMentorGroupId}
+                              onChange={(e) => setInviteMentorGroupId(e.target.value)}
                               className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                             >
-                              <option value="">No mentor assigned</option>
-                              {inviteMentors.map((m) => (
-                                <option key={m.mentor_group_id} value={m.mentor_group_id}>{m.group_name}</option>
+                              <option value="">No group assigned</option>
+                              {inviteMentorGroups.map((g) => (
+                                <option key={g.id} value={g.id}>
+                                  {g.name}{g.mentor_name ? ` (Current Mentor: ${g.mentor_name})` : ' (No mentor yet)'}
+                                </option>
                               ))}
                             </select>
                           ) : (
                             <div className="text-xs text-[#64748b] p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-                              No mentors found for {inviteTrack} / {inviteClass}
+                              No mentor groups found for {inviteTrack} / {inviteClass}. You can create one first using the "Mentor Groups" button.
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Mentor Group selector for non-mentor, non-teacher roles (e.g. students) */}
+                      {inviteClass && inviteRole !== 'mentor' && (
+                        <div>
+                          <label className="block text-xs font-semibold text-[#0f172a] mb-1">Assign to Mentor Group</label>
+                          {loadingInviteMentorGroups ? (
+                            <div className="text-xs text-[#64748b] py-1">Loading mentor groups...</div>
+                          ) : inviteMentorGroups.length > 0 ? (
+                            <select
+                              value={inviteMentorGroupId}
+                              onChange={(e) => setInviteMentorGroupId(e.target.value)}
+                              className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
+                            >
+                              <option value="">No group assigned</option>
+                              {inviteMentorGroups.map((g) => (
+                                <option key={g.id} value={g.id}>
+                                  {g.name}{g.mentor_name ? ` (Mentor: ${g.mentor_name})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="text-xs text-[#64748b] p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                              No mentor groups found for {inviteTrack} / {inviteClass}
                             </div>
                           )}
                         </div>
@@ -629,7 +900,7 @@ export default function AdminUsersPage() {
                   <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
                   <div>
                     <span className="font-semibold block">Email delivery failed</span>
-                    <span>The invitation email could not be delivered. Please check the SMTP configuration and try inviting this user again.</span>
+                    <span>The invitation email could not be delivered. Please check the email provider configuration and try inviting this user again.</span>
                   </div>
                 </div>
               )}
@@ -706,6 +977,7 @@ export default function AdminUsersPage() {
                         setEditClass(firstClass);
                         if (!['teacher', 'super_admin'].includes(editRole)) {
                           fetchEditMentors(nextTrack, firstClass);
+                          fetchEditMentorGroupsForClass(nextTrack, firstClass);
                         }
                       }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]">
@@ -726,6 +998,7 @@ export default function AdminUsersPage() {
                           setEditClass(nextClass);
                           if (!['teacher', 'super_admin'].includes(editRole)) {
                             fetchEditMentors(editTrack, nextClass);
+                            fetchEditMentorGroupsForClass(editTrack, nextClass);
                           }
                         }}
                         className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]">
@@ -737,26 +1010,55 @@ export default function AdminUsersPage() {
                     </div>
                   )}
 
-                  {/* Mentor selector — shown for all roles except teacher and super_admin when class is set */}
-                  {!['teacher', 'super_admin'].includes(editRole) && editTrack && editClass && (
+                  {/* Mentor Group selector — for mentor role */}
+                  {editRole === 'mentor' && editTrack && editClass && (
                     <div>
-                      <label className="block text-xs font-semibold text-[#0f172a] mb-1">Assign Mentor</label>
-                      {loadingEditMentors ? (
-                        <div className="text-xs text-[#64748b] py-1">Loading mentors...</div>
-                      ) : editMentors.length > 0 ? (
+                      <label className="block text-xs font-semibold text-[#0f172a] mb-1">Assign to Mentor Group</label>
+                      {loadingEditMentorGroups ? (
+                        <div className="text-xs text-[#64748b] py-1">Loading mentor groups...</div>
+                      ) : editMentorGroups.length > 0 ? (
                         <select
-                          value={editMentorId}
-                          onChange={(e) => setEditMentorId(e.target.value)}
+                          value={editMentorGroupId}
+                          onChange={(e) => setEditMentorGroupId(e.target.value)}
                           className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                         >
-                          <option value="">No mentor assigned</option>
-                          {editMentors.map((m) => (
-                            <option key={m.mentor_group_id} value={m.mentor_group_id}>{m.group_name}</option>
+                          <option value="">No group assigned</option>
+                          {editMentorGroups.map((g) => (
+                            <option key={g.id} value={g.id}>
+                              {g.name}{g.mentor_name ? ` (Mentor: ${g.mentor_name})` : ''}
+                            </option>
                           ))}
                         </select>
                       ) : (
                         <div className="text-xs text-[#64748b] p-2.5 bg-slate-50 rounded-lg border border-slate-100">
-                          No mentors found for {editTrack} / {editClass}
+                          No mentor groups for {editTrack} / {editClass}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Mentor Group selector — for students and other roles */}
+                  {!['teacher', 'super_admin', 'mentor'].includes(editRole) && editTrack && editClass && (
+                    <div>
+                      <label className="block text-xs font-semibold text-[#0f172a] mb-1">Assign to Mentor Group</label>
+                      {loadingEditMentorGroups ? (
+                        <div className="text-xs text-[#64748b] py-1">Loading mentor groups...</div>
+                      ) : editMentorGroups.length > 0 ? (
+                        <select
+                          value={editMentorGroupId}
+                          onChange={(e) => setEditMentorGroupId(e.target.value)}
+                          className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
+                        >
+                          <option value="">No group assigned</option>
+                          {editMentorGroups.map((g) => (
+                            <option key={g.id} value={g.id}>
+                              {g.name}{g.mentor_name ? ` (Mentor: ${g.mentor_name})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="text-xs text-[#64748b] p-2.5 bg-slate-50 rounded-lg border border-slate-100">
+                          No mentor groups for {editTrack} / {editClass}
                         </div>
                       )}
                     </div>
@@ -802,6 +1104,98 @@ export default function AdminUsersPage() {
         onConfirm={doDeleteUser}
         onCancel={() => setConfirmState({ open: false, id: null })}
       />
+
+      <ConfirmModal
+        open={confirmDeleteGroup.open}
+        title="Delete mentor group?"
+        message="This will unassign all students from this group and permanently delete it. This cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={doDeleteMentorGroup}
+        onCancel={() => setConfirmDeleteGroup({ open: false, id: null })}
+      />
+
+      {/* Create Mentor Group Modal */}
+      {showCreateGroupModal && (
+        <Modal onClose={() => setShowCreateGroupModal(false)} maxWidth="max-w-md">
+          <div className="p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <UsersRound className="w-5 h-5 text-[#2383c9]" />
+                <h3 className="font-bold text-base text-[#0f172a]">{editingGroup ? 'Edit Mentor Group' : 'Create Mentor Group'}</h3>
+              </div>
+              <button onClick={() => setShowCreateGroupModal(false)} className="text-[#64748b] hover:text-[#0f172a] cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-[#64748b]">
+              Create a named mentor group for a specific academic track and class. Mentors can be assigned to it when invited or edited.
+            </p>
+
+            <form onSubmit={handleCreateMentorGroup} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#0f172a] mb-1">Group Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="e.g. Falcons, Group A, Team Alpha"
+                  className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#0f172a] mb-1">Academic Track</label>
+                <select
+                  value={newGroupTrack}
+                  onChange={(e) => {
+                    const nextTrack = e.target.value;
+                    setNewGroupTrack(nextTrack);
+                    const classes = getClassesForTrack(nextTrack);
+                    setNewGroupClass(classes[0]?.value || '');
+                  }}
+                  className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
+                >
+                  <option value="IB">IB</option>
+                  <option value="MINT">MINT</option>
+                  <option value="Abitur">Abitur</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#0f172a] mb-1">Class / Year Level</label>
+                <select
+                  value={newGroupClass}
+                  onChange={(e) => setNewGroupClass(e.target.value)}
+                  className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
+                >
+                  {getClassesForTrack(newGroupTrack).map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => { setShowCreateGroupModal(false); setEditingGroup(null); }}
+                  className="px-4 py-2 text-xs font-medium text-[#64748b] hover:bg-slate-100 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingGroup}
+                  className="px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {creatingGroup ? (editingGroup ? 'Saving...' : 'Creating...') : (editingGroup ? 'Save Changes' : 'Create Group')}
+                </button>
+              </div>
+            </form>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -49,6 +49,10 @@ export const SocketProvider = ({ children }) => {
 
     // New announcement
     socket.on('new_announcement', (ann) => {
+      toast.success(`New announcement: ${ann.title}`, {
+        duration: 5000,
+        icon: '',
+      });
       addNotification({
         id: ann.id,
         type: 'announcement',

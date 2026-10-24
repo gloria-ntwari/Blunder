@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { query } from '../config/db.js';
-import { sendInviteEmail, sendPasswordResetEmail } from '../config/mailer.js';
+import { sendInviteEmail, sendPasswordResetEmail, sendVerificationEmail } from '../config/mailer.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const generateOtp = () => crypto.randomInt(100000, 999999).toString();
@@ -38,9 +38,16 @@ export const registerStep1 = async (req, res, next) => {
     );
 
     const userId = result.rows[0].id;
-    // temp short-lived token just to complete step 2
+    const verificationToken = jwt.sign(
+      { userId, purpose: 'verify_email' },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    await sendVerificationEmail(normalizedEmail, verificationToken);
+
+    // Short-lived token just to complete the academic-details step.
     const tempToken = jwt.sign({ userId, step: 1 }, process.env.JWT_SECRET, { expiresIn: '30m' });
-    res.status(201).json({ tempToken, message: 'Step 1 complete. Proceed to step 2.' });
+    res.status(201).json({ tempToken, message: 'Account created. Check your email to verify your account.' });
   } catch (err) { next(err); }
 };
 
@@ -67,26 +74,12 @@ export const registerStep2 = async (req, res, next) => {
 
     await query(
       `UPDATE users SET academic_track = $1, class_year = $2, mentor_group_id = $3,
-       is_verified = TRUE, updated_at = NOW()
+       updated_at = NOW()
        WHERE id = $4`,
       [academic_track, class_year, mentor_group_id || null, decoded.userId]
     );
 
-    const { accessToken, refreshToken } = signTokens(decoded.userId);
-
-    // Store refresh token
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await query(
-      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-      [decoded.userId, refreshToken, expiresAt]
-    );
-
-    const user = await query(
-      'SELECT id, full_name, email, role, academic_track, class_year, avatar_url FROM users WHERE id = $1',
-      [decoded.userId]
-    );
-
-    res.json({ accessToken, refreshToken, user: user.rows[0] });
+    res.json({ message: 'Academic details saved. Verify your email before signing in.' });
   } catch (err) { next(err); }
 };
 
@@ -129,6 +122,33 @@ export const login = async (req, res, next) => {
 
     const { password_hash, ...safeUser } = user;
     res.json({ accessToken, refreshToken, user: safeUser });
+  } catch (err) { next(err); }
+};
+
+// ── Verify self-registration email ──────────────────────────────────────────
+export const verifyEmail = async (req, res, next) => {
+  try {
+    const token = req.query.token || req.body?.token;
+    if (!token) return res.status(400).json({ message: 'Verification token is required' });
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(400).json({ message: 'This verification link is invalid or expired' });
+    }
+
+    if (decoded.purpose !== 'verify_email' || !decoded.userId)
+      return res.status(400).json({ message: 'Invalid verification link' });
+
+    const result = await query(
+      `UPDATE users SET is_verified = TRUE, updated_at = NOW()
+       WHERE id = $1 RETURNING id, full_name, email, role, academic_track, class_year, avatar_url`,
+      [decoded.userId]
+    );
+    if (!result.rows.length) return res.status(404).json({ message: 'Account not found' });
+
+    res.json({ message: 'Email verified successfully. You can now sign in.', user: result.rows[0] });
   } catch (err) { next(err); }
 };
 
@@ -177,17 +197,17 @@ export const logout = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// ── Invite admin, school leader, or mentor (Super Admin only) ────────────────
+// ── Invite users from the roles permitted to the current administrator ───────
 export const inviteUser = async (req, res, next) => {
   try {
-    let { email, full_name, role, admin_type, academic_track, class_year } = req.body;
+    let { email, full_name, role, admin_type, academic_track, class_year, mentor_group_id } = req.body;
 
     if (!['sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student'].includes(role))
       return res.status(400).json({ message: 'Invalid role' });
 
-    // student_leader can only invite mentor and committee
-    if (req.user.role === 'student_leader' && !['mentor', 'committee'].includes(role))
-      return res.status(403).json({ message: 'Student leaders can only invite mentors and committee members' });
+    // Student leaders can only invite student leaders, committee members, and mentors.
+    if (req.user.role === 'student_leader' && !['student_leader', 'committee', 'mentor'].includes(role))
+      return res.status(403).json({ message: 'Student leaders can only invite student leaders, committee members, and mentors' });
 
     email = email.trim().toLowerCase();
     full_name = full_name.trim();
@@ -219,18 +239,24 @@ export const inviteUser = async (req, res, next) => {
       userId = result.rows[0].id;
     }
 
-    // If role is mentor, ensure mentor_groups record exists for them
+    // If mentor_group_id provided, link user to the group
+    if (mentor_group_id) {
+      await query('UPDATE users SET mentor_group_id = $1 WHERE id = $2', [mentor_group_id, userId]);
+    }
+
+    // If role is mentor and a mentor_group_id was provided, assign this mentor to that group
     if (role === 'mentor') {
-      const existingGroup = await query('SELECT id FROM mentor_groups WHERE mentor_user_id = $1', [userId]);
-      if (!existingGroup.rows.length) {
+      const { mentor_group_id } = req.body;
+      if (mentor_group_id) {
+        // Unassign this mentor from any previous group
         await query(
-          'INSERT INTO mentor_groups (mentor_user_id, academic_track) VALUES ($1, $2)',
-          [userId, academic_track || null]
+          'UPDATE mentor_groups SET mentor_user_id = NULL WHERE mentor_user_id = $1',
+          [userId]
         );
-      } else {
+        // Assign to the specified group
         await query(
-          'UPDATE mentor_groups SET academic_track = $1 WHERE mentor_user_id = $2',
-          [academic_track || null, userId]
+          'UPDATE mentor_groups SET mentor_user_id = $1 WHERE id = $2',
+          [userId, mentor_group_id]
         );
       }
     }
@@ -265,7 +291,7 @@ export const inviteUser = async (req, res, next) => {
     res.status(201).json({
       message: emailSent
         ? `${role.replace('_', ' ')} invited successfully. A setup email has been sent to ${email}.`
-        : `${role.replace('_', ' ')} record created, but the invitation email could not be delivered. Please check SMTP configuration and try again.`,
+        : `${role.replace('_', ' ')} record created, but the invitation email could not be delivered. Please check your email provider configuration and try again.`,
       emailSent,
       emailError,
       userId,

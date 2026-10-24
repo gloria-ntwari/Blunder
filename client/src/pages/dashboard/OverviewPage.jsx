@@ -139,6 +139,41 @@ export default function OverviewPage() {
 
   const firstName = user?.full_name ? user.full_name.split(' ')[0] : 'Bruno';
 
+  const statCards = [
+    {
+      label: t('dashboard.newAnnouncements', 'New announcements'),
+      value: announcements.length,
+      href: '/announcements',
+      icon: Bell,
+      iconClass: 'bg-[#e4f2fe] text-[#2383c9]',
+      hoverClass: 'hover:border-[#2383c9]/40',
+    },
+    {
+      label: t('dashboard.upcomingEvents', 'Upcoming events'),
+      value: events.length,
+      href: '/calendar',
+      icon: Calendar,
+      iconClass: 'bg-emerald-50 text-emerald-600',
+      hoverClass: 'hover:border-emerald-300',
+    },
+    {
+      label: t('dashboard.yourDeadlines', 'Your deadlines'),
+      value: deadlines.length,
+      href: '/deadlines',
+      icon: Clock,
+      iconClass: 'bg-[#fff7ed] text-[#f97316]',
+      hoverClass: 'hover:border-[#f97316]/40',
+    },
+    {
+      label: t('dashboard.lostFound', 'Lost & Found'),
+      value: lostFoundCount,
+      href: '/lost-found',
+      icon: Search,
+      iconClass: 'bg-purple-50 text-purple-600',
+      hoverClass: 'hover:border-purple-300',
+    },
+  ];
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-fade-in font-['Outfit']">
       {/* Active Snack Alert Banner */}
@@ -194,89 +229,31 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* 4 Stats Cards (EXACT Structure from Image 1, Curvature reduced to rounded-xl) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: New Announcements */}
-        <Link
-          to="/announcements"
-          className="bg-white p-5 rounded-xl border border-slate-200/70 shadow-xs hover:border-[#2383c9]/40 hover:shadow-sm transition-all group"
-        >
-          <div className="flex items-start justify-between">
-            {/* Stat Topic: 14px, 500, 20px line-height, color lab(48.0876 -2.03595 -16.5814) */}
-            <p className="text-[14px] font-medium leading-[20px] text-[#64748b]">
-              {t('dashboard.newAnnouncements', 'New announcements')}
-            </p>
-            {/* Soft Icon Badge */}
-            <div className="w-9 h-9 rounded-lg bg-[#e4f2fe] text-[#2383c9] flex items-center justify-center shrink-0">
-              <Bell className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <p className="text-[30px] font-bold text-[#0f172a] leading-none">
-              {announcements.length}
-            </p>
-          </div>
-        </Link>
-
-        {/* Card 2: Upcoming Events */}
-        <Link
-          to="/calendar"
-          className="bg-white p-5 rounded-xl border border-slate-200/70 shadow-xs hover:border-emerald-300 hover:shadow-sm transition-all group"
-        >
-          <div className="flex items-start justify-between">
-            <p className="text-[14px] font-medium leading-[20px] text-[#64748b]">
-              {t('dashboard.upcomingEvents', 'Upcoming events')}
-            </p>
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <Calendar className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <p className="text-[30px] font-bold text-[#0f172a] leading-none">
-              {events.length}
-            </p>
-          </div>
-        </Link>
-
-        {/* Card 3: Deadlines */}
-        <Link
-          to="/deadlines"
-          className="bg-white p-5 rounded-xl border border-slate-200/70 shadow-xs hover:border-[#f97316]/40 hover:shadow-sm transition-all group"
-        >
-          <div className="flex items-start justify-between">
-            <p className="text-[14px] font-medium leading-[20px] text-[#64748b]">
-              {t('dashboard.yourDeadlines', 'Your deadlines')}
-            </p>
-            <div className="w-9 h-9 rounded-lg bg-[#fff7ed] text-[#f97316] flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <p className="text-[30px] font-bold text-[#0f172a] leading-none">
-              {deadlines.length}
-            </p>
-          </div>
-        </Link>
-
-        {/* Card 4: Lost & Found */}
-        <Link
-          to="/lost-found"
-          className="bg-white p-5 rounded-xl border border-slate-200/70 shadow-xs hover:border-purple-300 hover:shadow-sm transition-all group"
-        >
-          <div className="flex items-start justify-between">
-            <p className="text-[14px] font-medium leading-[20px] text-[#64748b]">
-              {t('dashboard.lostFound', 'Lost & Found')}
-            </p>
-            <div className="w-9 h-9 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-              <Search className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <p className="text-[30px] font-bold text-[#0f172a] leading-none">
-              {lostFoundCount}
-            </p>
-          </div>
-        </Link>
+      {/* Seamless infinite stats marquee */}
+      <div className="w-full overflow-hidden relative">
+        <div className="flex w-max animate-marquee ">
+          {[...statCards, ...statCards].map((card, index) => {
+            const Icon = card.icon;
+            const duplicate = index >= statCards.length;
+            return (
+              <Link
+                key={`${card.href}-${index}`}
+                to={card.href}
+                aria-hidden={duplicate}
+                tabIndex={duplicate ? -1 : undefined}
+                className={`w-[min(78vw,17rem)] sm:w-64 lg:w-72 shrink-0 mr-4 bg-white p-5 rounded-xl border border-slate-200/70 shadow-xs ${card.hoverClass} hover:shadow-sm transition-all group/card`}
+              >
+                <div className="flex items-start justify-between">
+                  <p className="text-[14px] font-medium leading-[20px] text-[#64748b]">{card.label}</p>
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${card.iconClass}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                </div>
+                <p className="mt-2 text-[30px] font-bold text-[#0f172a] leading-none">{card.value}</p>
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {/* Campus Life Castle Hero Banner (Reduced Curvature to rounded-xl) */}

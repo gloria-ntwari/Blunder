@@ -43,7 +43,7 @@ export default function DeadlinesPage() {
     if (!tr || !classYr) { setMentorsForClass([]); setTargetMentorId(''); return; }
     setLoadingMentors(true);
     try {
-      const res = await api.get(`/users/mentors?academic_track=${tr}&class_year=${encodeURIComponent(classYr)}`);
+      const res = await api.get(`/mentor-groups?academic_track=${tr}&class_year=${encodeURIComponent(classYr)}`);
       setMentorsForClass(res.data || []);
       setTargetMentorId('');
     } catch {
@@ -314,7 +314,7 @@ export default function DeadlinesPage() {
                         >
                           <option value="">All mentor groups in {targetClass}</option>
                           {mentorsForClass.map((m) => (
-                            <option key={m.id} value={m.id}>{m.full_name}'s Group</option>
+                            <option key={m.id} value={m.id}>{m.name}</option>
                           ))}
                         </select>
                       ) : (

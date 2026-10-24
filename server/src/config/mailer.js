@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -6,17 +6,20 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false, // STARTTLS on port 587
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_ADDRESS = process.env.EMAIL_FROM || 'B.Lunder <onboarding@resend.dev>';
 
-const FROM_ADDRESS = process.env.SMTP_FROM || `B.Lunder <${process.env.SMTP_USER}>`;
+const sendEmail = async ({ to, subject, html }) => {
+  const { data, error } = await resend.emails.send({
+    from: FROM_ADDRESS,
+    to,
+    subject,
+    html,
+  });
+
+  if (error) throw new Error(error.message || 'Resend failed to send the email');
+  return data;
+};
 
 /**
  * Send OTP email to a new user being invited
@@ -31,8 +34,7 @@ export const sendInviteEmail = async (email, setupToken, role = 'admin') => {
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
   const setupLink = `${clientUrl}/set-password?token=${setupToken}`;
 
-  await transporter.sendMail({
-    from: FROM_ADDRESS,
+  await sendEmail({
     to: email,
     subject: `Your B.Lunder ${roleLabel} Invitation`,
     html: `
@@ -59,11 +61,32 @@ export const sendInviteEmail = async (email, setupToken, role = 'admin') => {
 };
 
 /**
+ * Send a verification link for a self-registered account.
+ */
+export const sendVerificationEmail = async (email, verificationToken) => {
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const verificationLink = `${clientUrl}/verify-email?token=${verificationToken}`;
+
+  return sendEmail({
+    to: email,
+    subject: 'Verify your B.Lunder email address',
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: auto; padding: 36px; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
+        <h2 style="color: #1a2b49; margin: 0 0 12px;">Verify your B.Lunder email</h2>
+        <p style="color: #1a1a2e; font-size: 15px; line-height: 1.5;">Click the button below to verify your email address and activate your account.</p>
+        <div style="text-align: center; padding: 22px 0;"><a href="${verificationLink}" style="display: inline-block; padding: 14px 30px; background: #1a2b49; color: #ffffff; font-weight: 700; text-decoration: none; border-radius: 8px;">Verify Email Address</a></div>
+        <p style="color: #64748b; font-size: 13px;">This link expires in <strong>24 hours</strong>.</p>
+        <p style="color: #2383c9; font-size: 12px; word-break: break-all;"><a href="${verificationLink}" style="color: #2383c9;">${verificationLink}</a></p>
+      </div>
+    `,
+  });
+};
+
+/**
  * Send password reset OTP
  */
 export const sendPasswordResetEmail = async (email, otpCode) => {
-  await transporter.sendMail({
-    from: FROM_ADDRESS,
+  await sendEmail({
     to: email,
     subject: 'Reset your B.Lunder password',
     html: `
@@ -79,4 +102,4 @@ export const sendPasswordResetEmail = async (email, otpCode) => {
   });
 };
 
-export default transporter;
+export default resend;

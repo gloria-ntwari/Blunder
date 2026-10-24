@@ -95,6 +95,26 @@ body {
   }
 }
 
+@keyframes statsFlow {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-12px);
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @keyframes pulse-orange {
 
   0%,
@@ -116,7 +136,18 @@ body {
 }
 
 .animate-slide-right {
-  animation: slideInRight 0.25s ease-out both;
+  animation: slideInRight 0.35s ease-out 1 both;
+  animation-iteration-count: 1;
+}
+
+.animate-stats-flow {
+  animation: statsFlow 3.6s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee {
+  animation: marquee 28s linear infinite;
+  will-change: transform;
 }
 
 .animate-pulse-orange {

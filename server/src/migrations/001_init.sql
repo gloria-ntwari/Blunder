@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS announcements (
   target_house_id UUID REFERENCES houses(id) ON DELETE SET NULL,
   is_pinned BOOLEAN DEFAULT FALSE,
   is_urgent BOOLEAN DEFAULT FALSE,
+  image_url TEXT,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

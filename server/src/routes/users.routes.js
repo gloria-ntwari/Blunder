@@ -12,8 +12,8 @@ router.put('/me', authenticate, upload.single('avatar'), updateMe);
 router.get('/mentor-groups', getMentorGroups); // public — used in registration
 router.get('/mentors', getMentors);           // public — used in registration
 
-// User management: super_admin only
-router.get('/', authenticate, authorize('super_admin'), getUsers);
+// Super admins can view all users; student leaders can view permitted roles.
+router.get('/', authenticate, authorize('super_admin', 'student_leader'), getUsers);
 router.get('/:id', authenticate, authorize('super_admin'), getUserById);
 router.put('/:id', authenticate, authorize('super_admin'), updateUser);
 router.delete('/:id', authenticate, authorize('super_admin'), deleteUser);

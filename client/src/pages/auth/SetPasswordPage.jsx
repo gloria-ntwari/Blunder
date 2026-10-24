@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Globe, Lock, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import { Globe, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -63,7 +63,7 @@ export default function SetPasswordPage() {
     <div className="min-h-screen flex flex-col md:flex-row bg-[#f8fafb] text-[#1a1a2e] font-['Outfit']">
       {/* ── Left Hero Panel ── */}
       <div className="relative md:w-1/2 min-h-[340px] md:min-h-screen bg-[#1a1a2e] flex flex-col justify-between p-8 md:p-14 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{ backgroundImage: `url('/assets/louisenlund_castle.jpg')` }} />
+        <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{ backgroundImage: `url('/assets/image2.jpeg')` }} />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b6b]/95 via-[#1a3a8a]/50 to-transparent" />
         <div className="relative z-10 flex items-center gap-3">
           <img src="/assets/louisenlund_logo.png" alt="Louisenlund" className="w-11 h-11 object-contain rounded-full bg-white/10 p-1 backdrop-blur-xs" />
@@ -93,9 +93,6 @@ export default function SetPasswordPage() {
       <div className="flex-1 flex flex-col justify-center items-center p-6 md:p-16 bg-[#f8fafb]">
         <div className="w-full max-w-md bg-white rounded-lg shadow-sm p-10 md:p-14 space-y-8 animate-fade-in">
           <div>
-            <div className="w-12 h-12 rounded-2xl bg-[#e4f2fe] text-[#2383c9] flex items-center justify-center mb-5">
-              <Lock className="w-6 h-6 stroke-[1.75]" />
-            </div>
             <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a2e] tracking-tight">Create your password</h2>
             <p className="mt-1.5 text-xs md:text-sm text-gray-500">Must be 8+ characters with at least one letter and one number.</p>
           </div>

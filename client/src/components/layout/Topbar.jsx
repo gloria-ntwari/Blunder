@@ -7,13 +7,14 @@ import {
   Globe,
   Check,
   CheckCheck,
-  ChevronDown
+  ChevronDown,
+  Menu
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { formatDistanceToNow } from 'date-fns';
 
-export default function Topbar() {
+export default function Topbar({ onMenuClick = () => {} }) {
   const { t, i18n } = useTranslation();
   const location = useLocation();
   const { user } = useAuthStore();
@@ -44,9 +45,12 @@ export default function Topbar() {
   };
 
   return (
-    <header className="h-14 bg-white border border-slate-200/60 px-4 flex items-center justify-between shrink-0 relative z-10 font-['Outfit'] rounded-lg">
+    <header className="h-14 bg-white border border-slate-200/60 px-3 sm:px-4 flex items-center justify-between gap-2 shrink-0 relative z-20 font-['Outfit'] rounded-lg">
       {/* Brand + Search grouped together on the left */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+        <button type="button" onClick={onMenuClick} aria-label="Open navigation" className="p-2 -ml-1 rounded-lg text-slate-600 hover:bg-slate-100 lg:hidden shrink-0">
+          <Menu className="w-5 h-5" />
+        </button>
         {/* B.Lunder brand */}
         <div className="flex items-center gap-2 shrink-0">
           <img
@@ -62,8 +66,8 @@ export default function Topbar() {
         </div>
 
         {/* Search Input */}
-        <div className="w-[250px] md:w-[350px] lg:w-[450px] relative">
-          <div className="relative left-30">
+        <div className="hidden md:block w-[min(30vw,450px)] min-w-[180px] relative">
+          <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -75,7 +79,7 @@ export default function Topbar() {
       </div>
 
       {/* Right Actions: Language, Notification Bell, User profile */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1 sm:gap-3 shrink-0">
         {/* Language Switcher */}
         <div className="relative" ref={langRef}>
           <button
@@ -84,8 +88,8 @@ export default function Topbar() {
             title="Switch Language"
           >
             <Globe className="w-4 h-4 text-slate-500" />
-            <span className="uppercase">{i18n.language?.substring(0, 2) || 'EN'}</span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
+            <span className="uppercase hidden sm:inline">{i18n.language?.substring(0, 2) || 'EN'}</span>
+            <ChevronDown className="w-3 h-3 text-slate-400 hidden sm:block" />
           </button>
 
           {showLangMenu && (
@@ -200,13 +204,13 @@ export default function Topbar() {
               {user?.role?.replace('_', ' ') || 'Student'}
             </p>
           </div>
-          {/* <div className="w-8 h-8 rounded-full bg-[#e4f2fe] text-[#2383c9] flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200">
+          <div className="w-8 h-8 rounded-full bg-[#e4f2fe] text-[#2383c9] flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden border border-slate-200">
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
             ) : (
               user?.full_name?.charAt(0) || 'U'
             )}
-          </div> */}
+          </div>
         </Link>
       </div>
     </header>

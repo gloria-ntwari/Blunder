@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Globe, ArrowRight, CheckCircle2, User, BookOpen, Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
-import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 import { getClassesForTrack } from '../../utils/academicTracks';
 
@@ -17,7 +16,6 @@ const validatePassword = (pw) => {
 export default function RegisterPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { updateUser } = useAuthStore();
 
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -48,7 +46,7 @@ export default function RegisterPage() {
   const fetchMentors = async (track, classYr) => {
     setLoadingMentors(true);
     try {
-      const res = await api.get(`/users/mentors?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
+      const res = await api.get(`/mentor-groups?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
       const list = res.data || [];
       setMentors(list);
       setMentorId(list.length > 0 ? list[0].id : '');
@@ -91,13 +89,10 @@ export default function RegisterPage() {
         tempToken,
         academic_track: academicTrack,
         class_year: classYear,
-        mentor_id: mentorId || null
+        mentor_group_id: mentorId || null
       });
-      localStorage.setItem('blunder_access_token', res.data.accessToken);
-      localStorage.setItem('blunder_refresh_token', res.data.refreshToken);
-      updateUser(res.data.user);
-      toast.success('Registration completed! Welcome to Louisenlund.');
-      navigate('/dashboard', { replace: true });
+      toast.success('Registration saved! Check your email to verify your account.');
+      navigate('/verify-email', { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not complete registration.');
     } finally {
@@ -109,8 +104,8 @@ export default function RegisterPage() {
     <div className="min-h-screen flex flex-col md:flex-row bg-[#f8fafb] text-[#1a1a2e] font-['Outfit']">
       {/* ── Left Hero Panel ── */}
       <div className="relative md:w-1/2 min-h-[340px] md:min-h-screen bg-[#1a1a2e] flex flex-col justify-between p-8 md:p-14 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{ backgroundImage: `url('/assets/louisenlund_castle.jpg')` }} />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b6b]/95 via-[#1a3a8a]/50 to-transparent" />
+        <div className="absolute inset-0 bg-cover bg-center opacity-60" style={{ backgroundImage: `url('/assets/image2.jpeg')` }} />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0d2b6b]/95 via-[#1a3a8a]/10 to-transparent" />
         <div className="relative z-10 flex items-center gap-3">
           <img src="/assets/louisenlund_logo.png" alt="Louisenlund" className="w-11 h-11 object-contain rounded-full bg-white/10 p-1 backdrop-blur-xs" />
           <div>
@@ -214,17 +209,21 @@ export default function RegisterPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('auth.mentor', '3. Select Your Mentor')}</label>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('auth.mentor', '3. Select Your Mentor Group')}</label>
                   {loadingMentors ? (
-                    <div className="text-xs text-gray-400 py-2">Loading mentors...</div>
+                    <div className="text-xs text-gray-400 py-2">Loading mentor groups...</div>
                   ) : mentors.length > 0 ? (
                     <select value={mentorId} onChange={(e) => setMentorId(e.target.value)}
                       className="w-full bg-white text-xs text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all">
-                      {mentors.map((m) => <option key={m.id} value={m.id}>{m.full_name}</option>)}
+                      {mentors.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}{m.mentor_name ? ` — ${m.mentor_name}` : ''}
+                        </option>
+                      ))}
                     </select>
                   ) : (
                     <div className="bg-[#e4f2fe]/40 border border-[#1a1a2e]/10 p-3 rounded-lg text-xs text-gray-600">
-                      No mentor assigned for {academicTrack} / {classYear} yet. You can be assigned later.
+                      No mentor group created for {academicTrack} / {classYear} yet. You can be assigned later.
                     </div>
                   )}
                 </div>

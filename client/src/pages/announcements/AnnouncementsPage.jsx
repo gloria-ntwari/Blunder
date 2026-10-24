@@ -8,6 +8,7 @@ import {
   X,
   Trash2,
   Edit2,
+  ImagePlus,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
@@ -31,6 +32,8 @@ export default function AnnouncementsPage() {
   const [editingAnn, setEditingAnn] = useState(null); // null = create, object = edit
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
   const [scope, setScope] = useState('school_wide');
   const [targetTrack, setTargetTrack] = useState(user?.academic_track || 'IB');
   const [targetClass, setTargetClass] = useState('');
@@ -53,7 +56,7 @@ export default function AnnouncementsPage() {
     if (!track || !classYr) { setMentorsForClass([]); setTargetMentorId(''); return; }
     setLoadingMentors(true);
     try {
-      const res = await api.get(`/users/mentors?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
+      const res = await api.get(`/mentor-groups?academic_track=${track}&class_year=${encodeURIComponent(classYr)}`);
       setMentorsForClass(res.data || []);
       setTargetMentorId('');
     } catch {
@@ -68,6 +71,7 @@ export default function AnnouncementsPage() {
     // Default scope based on role
     const defaultScope = canPostSchoolWide ? 'school_wide' : canPostTrack ? 'academic_track' : 'mentor_group';
     setTitle(''); setBody(''); setScope(defaultScope);
+    setImageFile(null); setImagePreview('');
     setTargetTrack(user?.academic_track || 'IB'); setTargetClass('');
     setTargetMentorId(''); setMentorsForClass([]);
     setIsPinned(false); setIsUrgent(false);
@@ -78,11 +82,16 @@ export default function AnnouncementsPage() {
     setEditingAnn(ann);
     setTitle(ann.title || '');
     setBody(ann.body || '');
+    setImageFile(null); setImagePreview(ann.image_url || '');
     setScope(ann.scope || 'school_wide');
     setTargetTrack(ann.target_track || user?.academic_track || 'IB');
     setTargetClass(ann.target_class || '');
     setTargetMentorId('');
     setMentorsForClass([]);
+    if (ann.target_class) {
+      fetchMentorsForClass(ann.target_track || user?.academic_track || 'IB', ann.target_class)
+        .then(() => setTargetMentorId(ann.target_mentor_group_id || ''));
+    }
     setIsPinned(ann.is_pinned || false);
     setIsUrgent(ann.is_urgent || false);
     setShowModal(true);
@@ -106,15 +115,18 @@ export default function AnnouncementsPage() {
     e.preventDefault();
     if (!title || !body) return;
     setSubmitting(true);
-    const payload = {
-      title, body, scope,
-      target_track: scope === 'academic_track' ? targetTrack : null,
-      target_class: scope === 'academic_track' && targetClass ? targetClass : null,
-      target_mentor_id: scope === 'academic_track' && targetClass && targetMentorId ? targetMentorId : null,
-      target_mentor_group_id: scope === 'mentor_group' ? user?.mentor_group_id : null,
-      is_pinned: isPinned,
-      is_urgent: isUrgent,
-    };
+    const payload = new FormData();
+    payload.append('title', title);
+    payload.append('body', body);
+    payload.append('scope', scope);
+    payload.append('target_track', scope === 'academic_track' ? targetTrack : '');
+    payload.append('target_class', scope === 'academic_track' && targetClass ? targetClass : '');
+    payload.append('target_mentor_group_id', scope === 'academic_track' && targetClass && targetMentorId
+      ? targetMentorId
+      : scope === 'mentor_group' ? user?.mentor_group_id || '' : '');
+    payload.append('is_pinned', String(isPinned));
+    payload.append('is_urgent', String(isUrgent));
+    if (imageFile) payload.append('image', imageFile);
     try {
       if (editingAnn) {
         await api.put(`/announcements/${editingAnn.id}`, payload);
@@ -126,6 +138,7 @@ export default function AnnouncementsPage() {
       setShowModal(false);
       setEditingAnn(null);
       setTitle(''); setBody(''); setIsPinned(false); setIsUrgent(false);
+      setImageFile(null); setImagePreview('');
       setTargetClass(''); setTargetMentorId(''); setMentorsForClass([]);
       fetchAnnouncements();
     } catch (err) {
@@ -218,7 +231,7 @@ export default function AnnouncementsPage() {
           {filtered.map((ann) => (
             <div
               key={ann.id}
-              className={`p-6 rounded-lg bg-white border transition-all ${
+              className={`p-4 md:p-5 rounded-lg bg-white border transition-all ${
                 ann.is_urgent
                   ? 'border-red-200 bg-red-50/20'
                   : ann.is_pinned
@@ -275,12 +288,20 @@ export default function AnnouncementsPage() {
                 </div>
               </div>
 
-              <h2 className="text-base md:text-lg font-bold text-[#0f172a] mt-3">{ann.title}</h2>
+              {ann.image_url && (
+                <img
+                  src={ann.image_url}
+                  alt=""
+                  className="w-full h-40 md:float-right md:w-52 md:h-32 md:ml-5 md:mb-2 object-cover rounded-lg border border-slate-100"
+                />
+              )}
+
+              <h2 className="text-base md:text-lg font-bold text-[#0f172a] mt-3 break-words">{ann.title}</h2>
               <p className="text-xs md:text-sm text-[#64748b] mt-2 leading-relaxed whitespace-pre-line">
                 {ann.body}
               </p>
 
-              <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-[#64748b]">
+              <div className="clear-both pt-3 mt-4 border-t border-slate-100 flex items-center justify-between gap-3 text-xs text-[#64748b]">
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 rounded-full bg-[#e4f2fe] text-[#2383c9] flex items-center justify-center font-bold text-[10px] overflow-hidden">
                     {ann.author_avatar ? (
@@ -396,7 +417,7 @@ export default function AnnouncementsPage() {
                         >
                           <option value="">All mentor groups in {targetClass}</option>
                           {mentorsForClass.map((m) => (
-                            <option key={m.id} value={m.id}>{m.full_name}'s Group</option>
+                            <option key={m.id} value={m.id}>{m.name}</option>
                           ))}
                         </select>
                       ) : (
@@ -419,6 +440,26 @@ export default function AnnouncementsPage() {
                   placeholder="Write the announcement details..."
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors resize-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">Photo (optional)</label>
+                <label className="flex items-center gap-2 w-full px-3.5 py-2.5 rounded-lg border border-dashed border-slate-300 text-xs text-[#64748b] hover:bg-slate-50 cursor-pointer">
+                  <ImagePlus className="w-4 h-4 text-[#2383c9]" />
+                  <span>{imageFile?.name || (imagePreview ? 'Replace announcement photo' : 'Choose a photo')}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setImageFile(file);
+                      setImagePreview(URL.createObjectURL(file));
+                    }}
+                  />
+                </label>
+                {imagePreview && <img src={imagePreview} alt="Preview" className="mt-2 w-full h-32 object-cover rounded-lg border border-slate-100" />}
               </div>
 
               <div className="flex items-center gap-6 p-3 bg-slate-50 rounded-lg border border-slate-100">
