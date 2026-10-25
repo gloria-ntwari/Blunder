@@ -1,3 +1,6 @@
+import { sendPushToAll } from '../config/push.js';
+import { createNotificationsForChange } from '../services/notifications.service.js';
+
 /**
  * Socket.io event initialiser
  * Rooms: user:<userId>, track:<track>, mentor_group:<id>
@@ -32,6 +35,7 @@ export const emitSnackAlert = (io, alert) => {
 // newly-created records become visible without a manual browser refresh.
 export const emitDataChanged = (io, entity, record) => {
   io.to('all').emit('data_changed', { entity, action: 'created', record });
+  createNotificationsForChange(entity, record).catch((err) => console.error('[Notifications]', err.message));
   if (entity === 'deadline' && record?.type === 'personal') return;
   const labels = { announcement: 'announcement', event: 'event', food: 'food menu update', lost_found: 'lost & found item', deadline: 'deadline', mentor_group: 'mentor group' };
   sendPushToAll({
@@ -77,4 +81,3 @@ export const emitEvent = (io, event) => {
     io.to(`mentor_group:${target_mentor_group_id}`).emit('new_event', event);
   }
 };
-import { sendPushToAll } from '../config/push.js';
