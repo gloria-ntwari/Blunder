@@ -25,12 +25,22 @@ export const initSocket = (io) => {
  */
 export const emitSnackAlert = (io, alert) => {
   io.to('all').emit('snack_alert', alert);
+  sendPushToAll({ title: 'New snack alert', body: alert.message, tag: `snack-${alert.id}`, url: '/dashboard' }).catch(console.error);
 };
 
 // Generic invalidation event. Clients can refetch their current view so all
 // newly-created records become visible without a manual browser refresh.
 export const emitDataChanged = (io, entity, record) => {
   io.to('all').emit('data_changed', { entity, action: 'created', record });
+  if (entity === 'deadline' && record?.type === 'personal') return;
+  const labels = { announcement: 'announcement', event: 'event', food: 'food menu update', lost_found: 'lost & found item', deadline: 'deadline', mentor_group: 'mentor group' };
+  sendPushToAll({
+    title: `New ${labels[entity] || 'update'}`,
+    // Keep the push generic because some records are scoped to a track/group.
+    body: 'Open B.Lunder to view the latest update.',
+    tag: `blunder-${entity}-${record?.id || Date.now()}`,
+    url: entity === 'announcement' ? '/announcements' : '/dashboard',
+  }).catch(console.error);
 };
 
 /**
@@ -67,3 +77,4 @@ export const emitEvent = (io, event) => {
     io.to(`mentor_group:${target_mentor_group_id}`).emit('new_event', event);
   }
 };
+import { sendPushToAll } from '../config/push.js';

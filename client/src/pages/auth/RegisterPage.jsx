@@ -23,6 +23,7 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('student');
   const [showPassword, setShowPassword] = useState(false);
   const [tempToken, setTempToken] = useState('');
 
@@ -36,12 +37,12 @@ export default function RegisterPage() {
     const classes = getClassesForTrack(academicTrack);
     const firstClass = classes[0]?.value || 'DP1';
     setClassYear(firstClass);
-    fetchMentors(academicTrack, firstClass);
-  }, [academicTrack]);
+    if (role === 'student') fetchMentors(academicTrack, firstClass);
+  }, [academicTrack, role]);
 
   useEffect(() => {
-    fetchMentors(academicTrack, classYear);
-  }, [classYear]);
+    if (role === 'student') fetchMentors(academicTrack, classYear);
+  }, [classYear, role]);
 
   const fetchMentors = async (track, classYr) => {
     setLoadingMentors(true);
@@ -70,10 +71,10 @@ export default function RegisterPage() {
     if (err) { toast.error(err); return; }
     setLoading(true);
     try {
-      const res = await api.post('/auth/register/step1', { full_name: fullName, email, password });
+      const res = await api.post('/auth/register/step1', { full_name: fullName, email, password, role });
       setTempToken(res.data.tempToken);
       setStep(2);
-      toast.success(res.data.message || 'Step 1 complete! Now choose your class & track.');
+      toast.success(res.data.message || 'Step 1 complete! Now choose your academic track.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed.');
     } finally {
@@ -150,6 +151,16 @@ export default function RegisterPage() {
               </div>
               <form onSubmit={handleStep1Submit} className="space-y-4">
                 <div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[{ value: 'student', label: 'Student', icon: User }, { value: 'teacher', label: 'Teacher', icon: BookOpen }].map(({ value, label, icon: Icon }) => (
+                      <button key={value} type="button" onClick={() => setRole(value)}
+                        className={`py-3 px-3 rounded-lg text-xs font-semibold border transition-all flex items-center justify-center gap-2 ${role === value ? 'bg-[#1a2b49] text-white border-[#1a2b49] shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>
+                        <Icon className="w-4 h-4" />{label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('auth.fullName', 'Full name')}</label>
                   <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Alex Linden"
@@ -187,7 +198,7 @@ export default function RegisterPage() {
             <>
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a2e] tracking-tight">{t('auth.step2Title', 'Tell us about you')}</h2>
-                <p className="mt-1.5 text-xs md:text-sm text-gray-500">{t('auth.step2Subtitle', 'Select your academic track, class, and mentor.')}</p>
+                <p className="mt-1.5 text-xs md:text-sm text-gray-500">{role === 'teacher' ? 'Select the academic track you belong to.' : t('auth.step2Subtitle', 'Select your academic track, class, and mentor.')}</p>
               </div>
               <form onSubmit={handleStep2Submit} className="space-y-4">
                 <div>
@@ -201,14 +212,14 @@ export default function RegisterPage() {
                     ))}
                   </div>
                 </div>
-                <div>
+                {role === 'student' && <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('auth.classYear', '2. Class / Year Level')}</label>
                   <select value={classYear} onChange={(e) => setClassYear(e.target.value)}
                     className="w-full bg-white text-xs text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all">
                     {getClassesForTrack(academicTrack).map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
-                </div>
-                <div>
+                </div>}
+                {role === 'student' && <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('auth.mentor', '3. Select Your Mentor Group')}</label>
                   {loadingMentors ? (
                     <div className="text-xs text-gray-400 py-2">Loading mentor groups...</div>
@@ -226,7 +237,7 @@ export default function RegisterPage() {
                       No mentor group created for {academicTrack} / {classYear} yet. You can be assigned later.
                     </div>
                   )}
-                </div>
+                </div>}
                 <div className="flex items-center gap-3 pt-2">
                   <button type="button" onClick={() => setStep(1)}
                     className="py-3 px-4 rounded-lg border border-gray-200 hover:bg-gray-50 text-xs font-semibold text-gray-600 transition-colors">Back</button>

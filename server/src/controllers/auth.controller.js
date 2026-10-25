@@ -17,12 +17,14 @@ const signTokens = (userId) => {
   return { accessToken, refreshToken };
 };
 
-// ── Student self-registration Step 1 (returns temp token) ────────────────────
+// ── Self-registration Step 1 (returns temp token) ────────────────────────────
 export const registerStep1 = async (req, res, next) => {
   try {
-    const { full_name, email, password } = req.body;
+    const { full_name, email, password, role = 'student' } = req.body;
     if (!full_name || !email || !password)
       return res.status(400).json({ message: 'full_name, email and password are required' });
+    if (!['student', 'teacher'].includes(role))
+      return res.status(400).json({ message: 'You may register only as a student or teacher' });
 
     const normalizedEmail = email.trim().toLowerCase();
     const exists = await query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
@@ -33,8 +35,8 @@ export const registerStep1 = async (req, res, next) => {
 
     const result = await query(
       `INSERT INTO users (full_name, email, password_hash, role, is_verified)
-       VALUES ($1, $2, $3, 'student', FALSE) RETURNING id`,
-      [full_name.trim(), normalizedEmail, hash]
+       VALUES ($1, $2, $3, $4, FALSE) RETURNING id`,
+      [full_name.trim(), normalizedEmail, hash, role]
     );
 
     const userId = result.rows[0].id;
@@ -46,12 +48,12 @@ export const registerStep1 = async (req, res, next) => {
     await sendVerificationEmail(normalizedEmail, verificationToken);
 
     // Short-lived token just to complete the academic-details step.
-    const tempToken = jwt.sign({ userId, step: 1 }, process.env.JWT_SECRET, { expiresIn: '30m' });
-    res.status(201).json({ tempToken, message: 'Account created. Check your email to verify your account.' });
+    const tempToken = jwt.sign({ userId, role, step: 1 }, process.env.JWT_SECRET, { expiresIn: '30m' });
+    res.status(201).json({ tempToken, role, message: 'Account created. Complete your academic details.' });
   } catch (err) { next(err); }
 };
 
-// ── Student self-registration Step 2 ─────────────────────────────────────────
+// ── Self-registration Step 2 ─────────────────────────────────────────────────
 export const registerStep2 = async (req, res, next) => {
   try {
     const { academic_track, class_year, mentor_group_id } = req.body;
@@ -72,14 +74,17 @@ export const registerStep2 = async (req, res, next) => {
     if (!VALID_TRACKS.includes(academic_track))
       return res.status(400).json({ message: 'Invalid academic track' });
 
+    const role = decoded.role || 'student';
+    const isTeacher = role === 'teacher';
+
     await query(
       `UPDATE users SET academic_track = $1, class_year = $2, mentor_group_id = $3,
        updated_at = NOW()
        WHERE id = $4`,
-      [academic_track, class_year, mentor_group_id || null, decoded.userId]
+      [academic_track, isTeacher ? null : class_year, isTeacher ? null : (mentor_group_id || null), decoded.userId]
     );
 
-    res.json({ message: 'Academic details saved. Verify your email before signing in.' });
+    res.json({ message: `${isTeacher ? 'Teacher' : 'Student'} details saved. Verify your email before signing in.` });
   } catch (err) { next(err); }
 };
 

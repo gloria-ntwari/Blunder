@@ -297,20 +297,6 @@ export default function LostFoundPage() {
                     )}
                   </div>
 
-                  {/* Edit / Delete buttons */}
-                  {(canManage || user?.id === item.posted_by_id) && (
-                    <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={(e) => openEditModal(item, e)}
-                        className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#64748b] hover:text-[#2383c9] shadow-xs">
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={(e) => handleDelete(item.id, e)}
-                        className="p-1.5 rounded-lg bg-white/90 hover:bg-white text-[#64748b] hover:text-red-500 shadow-xs">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-
                   {/* Date badge */}
                   <div className="absolute bottom-3 right-3 px-2 py-0.5 rounded-sm bg-black/60 text-white text-[10px] flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
@@ -321,9 +307,24 @@ export default function LostFoundPage() {
                 {/* Card body */}
                 <div className="p-5 flex-1 flex flex-col justify-between">
                   <div>
-                    <h3 className="font-bold text-base text-[#0f172a] group-hover:text-[#2383c9] transition-colors">
-                      {item.item_name}
-                    </h3>
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="font-bold text-base text-[#0f172a] group-hover:text-[#2383c9] transition-colors min-w-0">
+                        {item.item_name}
+                      </h3>
+                      {/* Always-visible controls beside the item title */}
+                      {(canManage || user?.id === item.posted_by_id) && (
+                        <div className="flex items-center gap-1 shrink-0 -mt-1">
+                          <button onClick={(e) => openEditModal(item, e)} aria-label={`Edit ${item.item_name}`}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-[#64748b] hover:text-[#2383c9] hover:border-[#2383c9] transition-colors">
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={(e) => handleDelete(item.id, e)} aria-label={`Delete ${item.item_name}`}
+                            className="p-1.5 rounded-lg bg-white border border-slate-200 text-[#64748b] hover:text-red-500 hover:border-red-200 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center gap-1.5 text-xs text-[#64748b] mt-1">
                       <MapPin className="w-3.5 h-3.5 text-[#f97316]" />
                       <span>{item.location_found || 'Louisenlund Campus'}</span>
