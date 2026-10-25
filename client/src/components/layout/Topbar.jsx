@@ -13,6 +13,8 @@ import {
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { formatDistanceToNow } from 'date-fns';
+import toast from 'react-hot-toast';
+import { enablePushNotifications } from '../../services/pushNotifications.js';
 
 export default function Topbar({ onMenuClick = () => {} }) {
   const { t, i18n } = useTranslation();
@@ -42,6 +44,18 @@ export default function Topbar({ onMenuClick = () => {} }) {
     i18n.changeLanguage(lang);
     localStorage.setItem('blunder_lang', lang);
     setShowLangMenu(false);
+  };
+
+  const handleNotificationClick = async () => {
+    setShowNotifications(!showNotifications);
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      try {
+        await enablePushNotifications({ requestPermission: true });
+        toast.success('Phone notifications enabled');
+      } catch (err) {
+        toast.error(err.message);
+      }
+    }
   };
 
   return (
@@ -119,7 +133,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
         {/* Notifications Bell */}
         <div className="relative" ref={notifRef}>
           <button
-            onClick={() => setShowNotifications(!showNotifications)}
+            onClick={handleNotificationClick}
             className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:rounded-full hover:bg-slate-100 transition-all relative cursor-pointer"
             title="Notifications"
           >
@@ -130,7 +144,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-100 z-30 overflow-hidden animate-fade-in">
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 max-sm:fixed max-sm:top-16 max-sm:left-1/2 max-sm:right-auto max-sm:mt-0 max-sm:-translate-x-1/2 max-sm:w-[calc(100vw-1rem)] bg-white rounded-xl shadow-xl border border-slate-100 z-30 overflow-hidden animate-fade-in">
               <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-xs text-[#0f172a]">

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore.js';
 import { useNotificationStore } from './store/notificationStore.js';
-import api from './services/api.js';
+import { enablePushNotifications } from './services/pushNotifications.js';
 import { SocketProvider } from './context/SocketContext.jsx';
 import './i18n/index.js';
 
@@ -40,28 +40,7 @@ function AppInner() {
 
   useEffect(() => {
     if (!isAuthenticated || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
-    let cancelled = false;
-    const enablePush = async () => {
-      try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
-        const { data } = await api.get('/notifications/push/public-key');
-        if (cancelled || !data.publicKey) return;
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') return;
-        let subscription = await registration.pushManager.getSubscription();
-        if (!subscription) {
-          const padding = '='.repeat((4 - data.publicKey.length % 4) % 4);
-          const base64 = (data.publicKey + padding).replace(/-/g, '+').replace(/_/g, '/');
-          const key = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-          subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
-        }
-        await api.post('/notifications/push/subscribe', subscription.toJSON());
-      } catch (err) {
-        console.warn('[Web Push] Could not enable notifications:', err.message);
-      }
-    };
-    enablePush();
-    return () => { cancelled = true; };
+    enablePushNotifications().catch((err) => console.warn('[Web Push]', err.message));
   }, [isAuthenticated]);
 
   if (isLoading) {
