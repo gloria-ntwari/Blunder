@@ -1,6 +1,6 @@
 import { query } from '../config/db.js';
 import { uploadImage } from '../config/cloudinary.js';
-import { emitSnackAlert } from '../socket/index.js';
+import { emitSnackAlert, emitDataChanged } from '../socket/index.js';
 
 // ── GET /api/food ─────────────────────────────────────────────────────────────
 export const getFoodMenu = async (req, res, next) => {
@@ -76,6 +76,7 @@ export const createFoodMenu = async (req, res, next) => {
       [menu_date, meal_type, JSON.stringify(parsed), image_url, is_special_snack || false, req.user.id]
     );
 
+    emitDataChanged(req.app.get('io'), 'food', result.rows[0]);
     res.status(201).json(result.rows[0]);
   } catch (err) { next(err); }
 };

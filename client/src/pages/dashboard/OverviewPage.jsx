@@ -55,8 +55,11 @@ export default function OverviewPage() {
       });
     };
     socket.on('snack_alert', handleSnackAlert);
+    const handleDataChanged = () => fetchDashboardData();
+    window.addEventListener('blunder:data-changed', handleDataChanged);
     return () => {
       socket.off('snack_alert', handleSnackAlert);
+      window.removeEventListener('blunder:data-changed', handleDataChanged);
     };
   }, [socket]);
 

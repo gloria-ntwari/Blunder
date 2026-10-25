@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { emitDataChanged } from '../socket/index.js';
 
 export const getDeadlines = async (req, res, next) => {
   try {
@@ -48,6 +49,7 @@ export const createDeadline = async (req, res, next) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [title, description, due_date, type || 'personal', track || null, target_class || null, owner_id, u.id]
     );
+    emitDataChanged(req.app.get('io'), 'deadline', result.rows[0]);
     res.status(201).json(result.rows[0]);
   } catch (err) { next(err); }
 };

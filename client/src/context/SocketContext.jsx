@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuthStore } from '../store/authStore.js';
 import { useNotificationStore } from '../store/notificationStore.js';
@@ -7,25 +7,28 @@ import toast from 'react-hot-toast';
 const SocketContext = createContext(null);
 
 export const SocketProvider = ({ children }) => {
-  const socketRef = useRef(null);
+  const [socket, setSocket] = useState(null);
   const { user } = useAuthStore();
   const { addNotification } = useNotificationStore();
 
   useEffect(() => {
     if (!user) return;
 
-    socketRef.current = io('/', { withCredentials: true });
-    const socket = socketRef.current;
+    const socketOrigin = (import.meta.env.VITE_API_URL || window.location.origin)
+      .replace(/\/$/, '')
+      .replace(/\/api$/, '');
+    const connection = io(socketOrigin, { withCredentials: true });
+    setSocket(connection);
 
     // Join rooms
-    socket.emit('join', {
+    connection.emit('join', {
       userId: user.id,
       track: user.academic_track,
       mentorGroupId: user.mentor_group_id,
     });
 
     // Snack alert → orange banner toast
-    socket.on('snack_alert', (alert) => {
+    connection.on('snack_alert', (alert) => {
       toast(alert.message, {
         icon: '🍰',
         style: {
@@ -48,7 +51,7 @@ export const SocketProvider = ({ children }) => {
     });
 
     // New announcement
-    socket.on('new_announcement', (ann) => {
+    connection.on('new_announcement', (ann) => {
       toast.success(`New announcement: ${ann.title}`, {
         duration: 5000,
         icon: '',
@@ -63,20 +66,28 @@ export const SocketProvider = ({ children }) => {
         is_read: false,
         created_at: new Date().toISOString(),
       });
+      window.dispatchEvent(new CustomEvent('blunder:data-changed', {
+        detail: { entity: 'announcement', action: 'created', record: ann },
+      }));
+    });
+
+    connection.on('data_changed', (change) => {
+      window.dispatchEvent(new CustomEvent('blunder:data-changed', { detail: change }));
     });
 
     // Private notification
-    socket.on('notification', (notif) => {
+    connection.on('notification', (notif) => {
       addNotification(notif);
     });
 
     return () => {
-      socket.disconnect();
+      connection.disconnect();
+      setSocket(null);
     };
   }, [user?.id]);
 
   return (
-    <SocketContext.Provider value={socketRef.current}>
+    <SocketContext.Provider value={socket}>
       {children}
     </SocketContext.Provider>
   );

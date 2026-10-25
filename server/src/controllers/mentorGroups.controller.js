@@ -1,4 +1,5 @@
 import { query } from '../config/db.js';
+import { emitDataChanged } from '../socket/index.js';
 
 // ── GET /api/mentor-groups ──────────────────────────────────────────────────
 // Public: returns mentor groups, optionally filtered by academic_track and/or class_year
@@ -54,6 +55,7 @@ export const createMentorGroup = async (req, res, next) => {
        VALUES ($1, $2, $3) RETURNING *`,
       [name.trim(), academic_track, class_year]
     );
+    emitDataChanged(req.app.get('io'), 'mentor_group', result.rows[0]);
     res.status(201).json(result.rows[0]);
   } catch (err) { next(err); }
 };

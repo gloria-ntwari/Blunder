@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+// In production the API is often deployed separately from the Vite frontend.
+// Falling back to localhost makes the built browser app call the visitor's
+// computer instead of the deployed API.
+const apiOrigin = (import.meta.env.VITE_API_URL || window.location.origin)
+  .replace(/\/$/, '')
+  .replace(/\/api$/, '');
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : 'http://localhost:5000/api',
+  baseURL: `${apiOrigin}/api`,
   withCredentials: true,
 });
 
@@ -45,7 +52,7 @@ api.interceptors.response.use(
         const refreshToken = localStorage.getItem('blunder_refresh_token');
         if (!refreshToken) throw new Error('No refresh token');
 
-        const { data } = await axios.post('/api/auth/refresh', { refreshToken });
+        const { data } = await axios.post(`${apiOrigin}/api/auth/refresh`, { refreshToken });
         localStorage.setItem('blunder_access_token', data.accessToken);
         localStorage.setItem('blunder_refresh_token', data.refreshToken);
 

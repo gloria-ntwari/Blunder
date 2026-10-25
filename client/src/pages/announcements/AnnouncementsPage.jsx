@@ -11,6 +11,7 @@ import {
   ImagePlus,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { useSocket } from '../../context/SocketContext.jsx';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -22,6 +23,7 @@ import { getClassesForTrack } from '../../utils/academicTracks';
 export default function AnnouncementsPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
+  const socket = useSocket();
 
   const [announcements, setAnnouncements] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
@@ -98,6 +100,15 @@ export default function AnnouncementsPage() {
   };
 
   useEffect(() => { fetchAnnouncements(); }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleDataChanged = (event) => {
+      if (event.detail?.entity === 'announcement') fetchAnnouncements();
+    };
+    window.addEventListener('blunder:data-changed', handleDataChanged);
+    return () => window.removeEventListener('blunder:data-changed', handleDataChanged);
+  }, [socket]);
 
   const fetchAnnouncements = async () => {
     setLoading(true);

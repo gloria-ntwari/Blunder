@@ -27,6 +27,12 @@ export const emitSnackAlert = (io, alert) => {
   io.to('all').emit('snack_alert', alert);
 };
 
+// Generic invalidation event. Clients can refetch their current view so all
+// newly-created records become visible without a manual browser refresh.
+export const emitDataChanged = (io, entity, record) => {
+  io.to('all').emit('data_changed', { entity, action: 'created', record });
+};
+
 /**
  * Emit a new announcement to the appropriate room
  */

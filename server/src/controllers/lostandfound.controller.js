@@ -1,5 +1,6 @@
 import { query } from '../config/db.js';
 import { uploadImage } from '../config/cloudinary.js';
+import { emitDataChanged } from '../socket/index.js';
 
 // ── GET /api/lost-found ───────────────────────────────────────────────────────
 export const getLostFound = async (req, res, next) => {
@@ -84,6 +85,7 @@ export const createLostFound = async (req, res, next) => {
       [item_name, description, photo_url, location_found, date_found || new Date(), req.user.id, validType]
     );
 
+    emitDataChanged(req.app.get('io'), 'lost_found', result.rows[0]);
     res.status(201).json(result.rows[0]);
   } catch (err) { next(err); }
 };

@@ -1,6 +1,6 @@
 import { query } from '../config/db.js';
 import { uploadImage } from '../config/cloudinary.js';
-import { emitEvent } from '../socket/index.js';
+import { emitEvent, emitDataChanged } from '../socket/index.js';
 
 export const getEvents = async (req, res, next) => {
   try {
@@ -61,6 +61,7 @@ export const createEvent = async (req, res, next) => {
 
     const io = req.app.get('io');
     emitEvent(io, result.rows[0]);
+    emitDataChanged(io, 'event', result.rows[0]);
     res.status(201).json(result.rows[0]);
   } catch (err) { next(err); }
 };

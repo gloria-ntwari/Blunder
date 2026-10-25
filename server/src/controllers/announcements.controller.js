@@ -1,6 +1,6 @@
 import { query } from '../config/db.js';
 import { uploadImage } from '../config/cloudinary.js';
-import { emitAnnouncement } from '../socket/index.js';
+import { emitAnnouncement, emitDataChanged } from '../socket/index.js';
 
 const canPost = (user) =>
   ['super_admin', 'admin', 'mentor'].includes(user.role);
@@ -107,6 +107,7 @@ export const createAnnouncement = async (req, res, next) => {
 
     const io = req.app.get('io');
     emitAnnouncement(io, result.rows[0]);
+    emitDataChanged(io, 'announcement', result.rows[0]);
 
     res.status(201).json(result.rows[0]);
   } catch (err) { next(err); }
