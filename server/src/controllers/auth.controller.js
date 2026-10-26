@@ -157,6 +157,32 @@ export const verifyEmail = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+// ── Resend self-registration email ──────────────────────────────────────────
+export const resendVerificationEmail = async (req, res, next) => {
+  try {
+    const normalizedEmail = req.body?.email?.trim().toLowerCase();
+    if (!normalizedEmail) return res.status(400).json({ message: 'Email address is required' });
+
+    const result = await query(
+      'SELECT id, is_verified FROM users WHERE LOWER(email) = $1 AND is_active = TRUE',
+      [normalizedEmail]
+    );
+    const user = result.rows[0];
+
+    // Keep the response generic so this endpoint cannot be used to discover accounts.
+    if (user && !user.is_verified) {
+      const verificationToken = jwt.sign(
+        { userId: user.id, purpose: 'verify_email' },
+        process.env.JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+      await sendVerificationEmail(normalizedEmail, verificationToken);
+    }
+
+    res.json({ message: 'If an unverified account exists for that email, a new verification link has been sent.' });
+  } catch (err) { next(err); }
+};
+
 // ── Refresh token ─────────────────────────────────────────────────────────────
 export const refresh = async (req, res, next) => {
   try {

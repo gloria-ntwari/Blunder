@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Mail, XCircle } from 'lucide-react';
 import api from '../../services/api';
 
@@ -7,6 +7,9 @@ export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState(searchParams.get('token') ? 'loading' : 'pending');
   const [message, setMessage] = useState('Check your inbox for the verification link.');
+  const [email, setEmail] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
 
   useEffect(() => {
     const token = searchParams.get('token');
@@ -22,6 +25,21 @@ export default function VerifyEmailPage() {
         setMessage(err.response?.data?.message || 'This verification link is invalid or expired.');
       });
   }, [searchParams]);
+
+  const handleResend = async (event) => {
+    event.preventDefault();
+    if (!email.trim()) return;
+    setResending(true);
+    try {
+      const response = await api.post('/auth/resend-verification', { email: email.trim() });
+      setMessage(response.data.message);
+      setResent(true);
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Unable to resend the verification email. Please try again.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const Icon = status === 'success' ? CheckCircle2 : status === 'error' ? XCircle : Mail;
   const iconClass = status === 'success'
@@ -40,10 +58,28 @@ export default function VerifyEmailPage() {
           </h1>
           <p className="mt-2 text-sm text-[#64748b]">{status === 'loading' ? 'Please wait while we confirm your email address.' : message}</p>
         </div>
-        {status !== 'loading' && (
-          <Link to="/login" className="inline-flex px-5 py-2.5 rounded-lg bg-[#1a2b49] text-white text-sm font-semibold hover:bg-[#14223b]">
-            Go to sign in
-          </Link>
+        {status === 'error' && (
+          <form onSubmit={handleResend} className="space-y-3 text-left">
+            <label htmlFor="verification-email" className="block text-sm font-semibold text-[#1a1a2e]">
+              Enter your registered email
+            </label>
+            <input
+              id="verification-email"
+              type="email"
+              value={email}
+              onChange={(event) => { setEmail(event.target.value); setResent(false); }}
+              placeholder="you@example.com"
+              required
+              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9] focus:ring-2 focus:ring-[#2383c9]/20"
+            />
+            <button
+              type="submit"
+              disabled={resending || resent}
+              className="w-full rounded-lg bg-[#1a2b49] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#14223b] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {resending ? 'Sending…' : resent ? 'Verification email sent' : 'Resend verification email'}
+            </button>
+          </form>
         )}
       </div>
     </div>
