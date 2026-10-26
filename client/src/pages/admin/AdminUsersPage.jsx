@@ -593,13 +593,13 @@ export default function AdminUsersPage() {
                     </td>
 
                     <td className="py-3.5 px-5">
-                      {u.is_verified ? (
+                      {u.is_active ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
                           <CheckCircle2 className="w-3.5 h-3.5" /><span>Active</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
-                          <Clock className="w-3.5 h-3.5" /><span>Pending OTP</span>
+                          <Clock className="w-3.5 h-3.5" /><span>Inactive</span>
                         </span>
                       )}
                     </td>

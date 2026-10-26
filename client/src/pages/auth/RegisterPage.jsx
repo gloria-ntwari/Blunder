@@ -92,8 +92,8 @@ export default function RegisterPage() {
         class_year: classYear,
         mentor_group_id: mentorId || null
       });
-      toast.success('Registration saved! Check your email to verify your account.');
-      navigate('/verify-email', { replace: true });
+      toast.success('Registration complete! You can now sign in.');
+      navigate('/login', { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not complete registration.');
     } finally {

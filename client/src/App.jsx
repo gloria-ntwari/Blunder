@@ -17,7 +17,6 @@ import RegisterPage from './pages/auth/RegisterPage.jsx';
 import OtpVerifyPage from './pages/auth/OtpVerifyPage.jsx';
 import SetPasswordPage from './pages/auth/SetPasswordPage.jsx';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage.jsx';
-import VerifyEmailPage from './pages/auth/VerifyEmailPage.jsx';
 
 // App pages
 import OverviewPage from './pages/dashboard/OverviewPage.jsx';
@@ -62,7 +61,6 @@ function AppInner() {
       <Route path="/verify-otp" element={<OtpVerifyPage />} />
       <Route path="/set-password" element={<SetPasswordPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-      <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       {/* Protected app routes */}
       <Route element={<ProtectedRoute />}>

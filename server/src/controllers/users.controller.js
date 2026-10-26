@@ -6,7 +6,7 @@ export const getMe = async (req, res, next) => {
   try {
     const result = await query(
       `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
-              u.class_year, u.avatar_url, u.is_verified,
+              u.class_year, u.avatar_url,
               mg.id as mentor_group_id,
               mg.name as mentor_group_name
        FROM users u
@@ -67,7 +67,7 @@ export const updateMe = async (req, res, next) => {
 
     const updated = await query(
       `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
-              u.class_year, u.avatar_url, u.is_verified,
+              u.class_year, u.avatar_url,
               mg.id AS mentor_group_id, mg.name AS mentor_group_name
        FROM users u
        LEFT JOIN mentor_groups mg ON u.mentor_group_id = mg.id
@@ -103,7 +103,7 @@ export const getUsers = async (req, res, next) => {
 
     const result = await query(
       `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
-              u.class_year, u.avatar_url, u.is_verified, u.is_active, u.created_at,
+              u.class_year, u.avatar_url, u.is_active, u.created_at,
               u.mentor_group_id,
               mg.name as mentor_group_name
        FROM users u
@@ -132,7 +132,7 @@ export const getUsers = async (req, res, next) => {
 export const getUserById = async (req, res, next) => {
   try {
     const result = await query(
-      `SELECT id, full_name, email, role, admin_type, academic_track, class_year, avatar_url, is_verified, is_active
+      `SELECT id, full_name, email, role, admin_type, academic_track, class_year, avatar_url, is_active
        FROM users WHERE id = $1`,
       [req.params.id]
     );

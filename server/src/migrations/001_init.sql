@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS users (
   class_year VARCHAR(20),              -- e.g. 'DP2', 'Klasse 10', 'Q1'
   house_id UUID REFERENCES houses(id) ON DELETE SET NULL,
   avatar_url TEXT,
-  is_verified BOOLEAN DEFAULT FALSE,
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

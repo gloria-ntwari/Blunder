@@ -26,8 +26,8 @@ async function seed() {
   }
 
   await query(
-    `INSERT INTO users (full_name, email, password_hash, role, is_verified)
-     VALUES ($1, $2, $3, 'super_admin', TRUE)`,
+    `INSERT INTO users (full_name, email, password_hash, role)
+     VALUES ($1, $2, $3, 'super_admin')`,
     [SUPER_ADMIN_NAME || 'Super Admin', SUPER_ADMIN_EMAIL, hash]
   );
 

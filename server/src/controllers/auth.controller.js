@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { query } from '../config/db.js';
-import { sendInviteEmail, sendPasswordResetEmail, sendVerificationEmail } from '../config/mailer.js';
+import { sendInviteEmail, sendPasswordResetEmail } from '../config/mailer.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const generateOtp = () => crypto.randomInt(100000, 999999).toString();
@@ -34,19 +34,12 @@ export const registerStep1 = async (req, res, next) => {
     const hash = await bcrypt.hash(password, 12);
 
     const result = await query(
-      `INSERT INTO users (full_name, email, password_hash, role, is_verified)
-       VALUES ($1, $2, $3, $4, FALSE) RETURNING id`,
+      `INSERT INTO users (full_name, email, password_hash, role)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
       [full_name.trim(), normalizedEmail, hash, role]
     );
 
     const userId = result.rows[0].id;
-    const verificationToken = jwt.sign(
-      { userId, purpose: 'verify_email' },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-    await sendVerificationEmail(normalizedEmail, verificationToken);
-
     // Short-lived token just to complete the academic-details step.
     const tempToken = jwt.sign({ userId, role, step: 1 }, process.env.JWT_SECRET, { expiresIn: '30m' });
     res.status(201).json({ tempToken, role, message: 'Account created. Complete your academic details.' });
@@ -84,7 +77,7 @@ export const registerStep2 = async (req, res, next) => {
       [academic_track, isTeacher ? null : class_year, isTeacher ? null : (mentor_group_id || null), decoded.userId]
     );
 
-    res.json({ message: `${isTeacher ? 'Teacher' : 'Student'} details saved. Verify your email before signing in.` });
+    res.json({ message: `${isTeacher ? 'Teacher' : 'Student'} details saved. You can now sign in.` });
   } catch (err) { next(err); }
 };
 
@@ -114,9 +107,6 @@ export const login = async (req, res, next) => {
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) return res.status(401).json({ message: 'Invalid credentials' });
 
-    if (!user.is_verified)
-      return res.status(403).json({ message: 'Account not verified. Complete registration first.' });
-
     const { accessToken, refreshToken } = signTokens(user.id);
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -127,59 +117,6 @@ export const login = async (req, res, next) => {
 
     const { password_hash, ...safeUser } = user;
     res.json({ accessToken, refreshToken, user: safeUser });
-  } catch (err) { next(err); }
-};
-
-// ── Verify self-registration email ──────────────────────────────────────────
-export const verifyEmail = async (req, res, next) => {
-  try {
-    const token = req.query.token || req.body?.token;
-    if (!token) return res.status(400).json({ message: 'Verification token is required' });
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch {
-      return res.status(400).json({ message: 'This verification link is invalid or expired' });
-    }
-
-    if (decoded.purpose !== 'verify_email' || !decoded.userId)
-      return res.status(400).json({ message: 'Invalid verification link' });
-
-    const result = await query(
-      `UPDATE users SET is_verified = TRUE, updated_at = NOW()
-       WHERE id = $1 RETURNING id, full_name, email, role, academic_track, class_year, avatar_url`,
-      [decoded.userId]
-    );
-    if (!result.rows.length) return res.status(404).json({ message: 'Account not found' });
-
-    res.json({ message: 'Email verified successfully. You can now sign in.', user: result.rows[0] });
-  } catch (err) { next(err); }
-};
-
-// ── Resend self-registration email ──────────────────────────────────────────
-export const resendVerificationEmail = async (req, res, next) => {
-  try {
-    const normalizedEmail = req.body?.email?.trim().toLowerCase();
-    if (!normalizedEmail) return res.status(400).json({ message: 'Email address is required' });
-
-    const result = await query(
-      'SELECT id, is_verified FROM users WHERE LOWER(email) = $1 AND is_active = TRUE',
-      [normalizedEmail]
-    );
-    const user = result.rows[0];
-
-    // Keep the response generic so this endpoint cannot be used to discover accounts.
-    if (user && !user.is_verified) {
-      const verificationToken = jwt.sign(
-        { userId: user.id, purpose: 'verify_email' },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      await sendVerificationEmail(normalizedEmail, verificationToken);
-    }
-
-    res.json({ message: 'If an unverified account exists for that email, a new verification link has been sent.' });
   } catch (err) { next(err); }
 };
 
@@ -248,14 +185,14 @@ export const inviteUser = async (req, res, next) => {
       class_year = null;
     }
 
-    const exists = await query('SELECT id, is_verified FROM users WHERE LOWER(email) = $1', [email]);
+    const exists = await query('SELECT id, password_hash FROM users WHERE LOWER(email) = $1', [email]);
     let userId;
 
     if (exists.rows.length) {
-      if (exists.rows[0].is_verified) {
-        return res.status(409).json({ message: 'A verified user with this email already exists' });
+      if (exists.rows[0].password_hash) {
+        return res.status(409).json({ message: 'A user with this email already exists' });
       }
-      // If user exists but is unverified (pending invitation), update their info and re-issue OTP!
+      // If an invited user has not set a password yet, update their details and re-issue the OTP.
       userId = exists.rows[0].id;
       await query(
         `UPDATE users SET full_name = $1, role = $2, admin_type = $3, academic_track = $4, class_year = $5, updated_at = NOW() WHERE id = $6`,
@@ -263,8 +200,8 @@ export const inviteUser = async (req, res, next) => {
       );
     } else {
       const result = await query(
-        `INSERT INTO users (full_name, email, role, admin_type, academic_track, class_year, is_verified)
-         VALUES ($1, $2, $3, $4, $5, $6, FALSE) RETURNING id`,
+        `INSERT INTO users (full_name, email, role, admin_type, academic_track, class_year)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
         [full_name, email, role, admin_type || null, academic_track || null, class_year || null]
       );
       userId = result.rows[0].id;
@@ -379,7 +316,7 @@ export const setPassword = async (req, res, next) => {
 
     const hash = await bcrypt.hash(password, 12);
     await query(
-      `UPDATE users SET password_hash = $1, is_verified = TRUE, updated_at = NOW() WHERE id = $2`,
+      `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
       [hash, decoded.userId]
     );
 
