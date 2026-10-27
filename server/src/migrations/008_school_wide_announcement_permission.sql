@@ -1,0 +1,2 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS can_post_school_wide BOOLEAN DEFAULT FALSE;

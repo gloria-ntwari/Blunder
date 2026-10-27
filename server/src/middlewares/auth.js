@@ -15,7 +15,7 @@ export const authenticate = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const result = await query(
-      'SELECT id, full_name, email, role, admin_type, academic_track, class_year, mentor_group_id, house_id, avatar_url, is_active FROM users WHERE id = $1',
+      'SELECT id, full_name, email, role, admin_type, academic_track, class_year, mentor_group_id, house_id, avatar_url, is_active, can_post_school_wide FROM users WHERE id = $1',
       [decoded.userId]
     );
 

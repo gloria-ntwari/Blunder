@@ -6,7 +6,7 @@ export const getMe = async (req, res, next) => {
   try {
     const result = await query(
       `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
-              u.class_year, u.avatar_url,
+              u.class_year, u.avatar_url, u.can_post_school_wide,
               mg.id as mentor_group_id,
               mg.name as mentor_group_name
        FROM users u
@@ -67,7 +67,7 @@ export const updateMe = async (req, res, next) => {
 
     const updated = await query(
       `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
-              u.class_year, u.avatar_url,
+              u.class_year, u.avatar_url, u.can_post_school_wide,
               mg.id AS mentor_group_id, mg.name AS mentor_group_name
        FROM users u
        LEFT JOIN mentor_groups mg ON u.mentor_group_id = mg.id
@@ -87,10 +87,11 @@ export const getUsers = async (req, res, next) => {
     const params = [];
     const conditions = [];
 
-    // Never expose unrelated roles to a student leader, regardless of the
-    // filter sent by the client.
+    // Student leaders manage only students in their own academic track.
     if (req.user.role === 'student_leader') {
-      conditions.push(`u.role IN ('student_leader', 'committee', 'mentor')`);
+      conditions.push(`u.role = 'student'`);
+      conditions.push(`u.academic_track = $${params.length + 1}`);
+      params.push(req.user.academic_track || '__none__');
     }
 
     if (role) { params.push(role); conditions.push(`u.role = $${params.length}`); }
@@ -103,7 +104,7 @@ export const getUsers = async (req, res, next) => {
 
     const result = await query(
       `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
-              u.class_year, u.avatar_url, u.is_active, u.created_at,
+              u.class_year, u.avatar_url, u.is_active, u.can_post_school_wide, u.created_at,
               u.mentor_group_id,
               mg.name as mentor_group_name
        FROM users u
@@ -132,11 +133,15 @@ export const getUsers = async (req, res, next) => {
 export const getUserById = async (req, res, next) => {
   try {
     const result = await query(
-      `SELECT id, full_name, email, role, admin_type, academic_track, class_year, avatar_url, is_active
+      `SELECT id, full_name, email, role, admin_type, academic_track, class_year, avatar_url, is_active, can_post_school_wide
        FROM users WHERE id = $1`,
       [req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ message: 'User not found' });
+    if (req.user.role === 'student_leader' &&
+      (result.rows[0].role !== 'student' || result.rows[0].academic_track !== req.user.academic_track)) {
+      return res.status(403).json({ message: 'You can only view students in your academic track' });
+    }
     res.json(result.rows[0]);
   } catch (err) { next(err); }
 };
@@ -144,7 +149,21 @@ export const getUserById = async (req, res, next) => {
 // ── PUT /api/users/:id ────────────────────────────────────────────────────────
 export const updateUser = async (req, res, next) => {
   try {
-    const { full_name, role, admin_type, academic_track, class_year, mentor_group_id, is_active } = req.body;
+    const { full_name, role, admin_type, academic_track, class_year, mentor_group_id, is_active, can_post_school_wide } = req.body;
+
+    if (req.user.role === 'student_leader') {
+      const target = await query('SELECT role, academic_track FROM users WHERE id = $1', [req.params.id]);
+      if (!target.rows.length || target.rows[0].role !== 'student' || target.rows[0].academic_track !== req.user.academic_track) {
+        return res.status(403).json({ message: 'You can only edit students in your academic track' });
+      }
+      if ((role && role !== 'student') || (academic_track && academic_track !== req.user.academic_track)) {
+        return res.status(403).json({ message: 'Student leaders cannot change a student role or academic track' });
+      }
+    }
+
+    const requestedPermission = req.user.role === 'super_admin'
+      ? role === 'student' && Boolean(can_post_school_wide)
+      : null;
     await query(
       `UPDATE users SET
         full_name = COALESCE($1, full_name),
@@ -154,9 +173,10 @@ export const updateUser = async (req, res, next) => {
         class_year = $5,
         mentor_group_id = $6,
         is_active = COALESCE($7, is_active),
+        can_post_school_wide = COALESCE($8, can_post_school_wide),
         updated_at = NOW()
-       WHERE id = $8`,
-      [full_name, role, admin_type ?? null, academic_track ?? null, class_year ?? null, mentor_group_id ?? null, is_active, req.params.id]
+       WHERE id = $9`,
+      [full_name, role, admin_type ?? null, academic_track ?? null, class_year ?? null, mentor_group_id ?? null, is_active, requestedPermission, req.params.id]
     );
 
     // If role is mentor, keep mentor_groups.mentor_user_id in sync
@@ -177,6 +197,12 @@ export const deleteUser = async (req, res, next) => {
   try {
     if (req.params.id === req.user.id)
       return res.status(400).json({ message: 'Cannot delete your own account' });
+    if (req.user.role === 'student_leader') {
+      const target = await query('SELECT role, academic_track FROM users WHERE id = $1', [req.params.id]);
+      if (!target.rows.length || target.rows[0].role !== 'student' || target.rows[0].academic_track !== req.user.academic_track) {
+        return res.status(403).json({ message: 'You can only delete students in your academic track' });
+      }
+    }
     await query('DELETE FROM users WHERE id = $1', [req.params.id]);
     res.json({ message: 'User deleted' });
   } catch (err) { next(err); }

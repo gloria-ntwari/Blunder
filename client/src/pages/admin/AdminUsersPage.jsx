@@ -38,7 +38,7 @@ export default function AdminUsersPage() {
   const [totalUsers, setTotalUsers] = useState(0);
   const PAGE_SIZE = 8;
   const visibleRoles = user?.role === 'student_leader'
-    ? ['', 'student_leader', 'committee', 'mentor']
+    ? ['', 'student']
     : ['', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student'];
 
   const [showInviteModal, setShowInviteModal] = useState(false);
@@ -66,6 +66,7 @@ export default function AdminUsersPage() {
   const [editMentors, setEditMentors] = useState([]);
   const [loadingEditMentors, setLoadingEditMentors] = useState(false);
   const [editActive, setEditActive] = useState(true);
+  const [editCanPostSchoolWide, setEditCanPostSchoolWide] = useState(false);
   const [editing, setEditing] = useState(false);
   const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
@@ -327,6 +328,7 @@ export default function AdminUsersPage() {
     setEditMentors([]);
     setEditMentorGroups([]);
     setEditActive(u.is_active !== false);
+    setEditCanPostSchoolWide(Boolean(u.can_post_school_wide));
     setShowEditModal(true);
     // Load mentors and mentor groups, then pre-select
     if (!['teacher', 'super_admin'].includes(u.role) && u.academic_track) {
@@ -359,6 +361,7 @@ export default function AdminUsersPage() {
             ? (editMentorGroupId || editMentorId || null)
             : null,
         is_active: editActive,
+        can_post_school_wide: editCanPostSchoolWide,
       });
       toast.success('User updated successfully');
       setShowEditModal(false);
@@ -605,7 +608,7 @@ export default function AdminUsersPage() {
                     </td>
 
                     <td className="py-3.5 px-5 text-right">
-                      {user?.role === 'super_admin' && u.id !== user?.id && (
+                      {((user?.role === 'super_admin') || (user?.role === 'student_leader' && u.role === 'student')) && u.id !== user?.id && (
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => openEditModal(u)}
@@ -946,6 +949,7 @@ export default function AdminUsersPage() {
                   onChange={(e) => {
                     const nextRole = e.target.value;
                     setEditRole(nextRole);
+                    if (nextRole !== 'student') setEditCanPostSchoolWide(false);
                     if (nextRole === 'admin') {
                       setEditTrack('');
                       setEditClass('');
@@ -1080,6 +1084,21 @@ export default function AdminUsersPage() {
                   }`} />
                 </button>
               </div>
+
+              {user?.role === 'super_admin' && editRole === 'student' && (
+                <label className="flex items-start gap-2 py-2 px-3 bg-[#e4f2fe]/50 rounded-lg border border-[#2383c9]/20 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editCanPostSchoolWide}
+                    onChange={(e) => setEditCanPostSchoolWide(e.target.checked)}
+                    className="mt-0.5 rounded text-[#2383c9]"
+                  />
+                  <span>
+                    <span className="block text-xs font-semibold text-[#0f172a]">Allow school-wide announcements</span>
+                    <span className="block mt-0.5 text-[11px] text-[#64748b]">This student may create school-wide announcements only.</span>
+                  </span>
+                </label>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
                 <button type="button" onClick={() => setShowEditModal(false)}

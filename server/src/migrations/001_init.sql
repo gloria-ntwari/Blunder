@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS users (
   house_id UUID REFERENCES houses(id) ON DELETE SET NULL,
   avatar_url TEXT,
   is_active BOOLEAN DEFAULT TRUE,
+  can_post_school_wide BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

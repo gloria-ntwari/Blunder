@@ -47,10 +47,10 @@ export default function AnnouncementsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
-  const canPost = user && ['super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor'].includes(user.role);
+  const canPost = user && (['super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor'].includes(user.role) || user.can_post_school_wide);
 
   // Scope options available per role
-  const canPostSchoolWide = ['super_admin', 'sv_committee', 'teacher'].includes(user?.role);
+  const canPostSchoolWide = ['super_admin', 'sv_committee', 'teacher'].includes(user?.role) || Boolean(user?.can_post_school_wide);
   const canPostTrack      = ['super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee'].includes(user?.role);
   const canPostMentorGroup = user?.role === 'mentor';
 
@@ -74,7 +74,7 @@ export default function AnnouncementsPage() {
     const defaultScope = canPostSchoolWide ? 'school_wide' : canPostTrack ? 'academic_track' : 'mentor_group';
     setTitle(''); setBody(''); setScope(defaultScope);
     setImageFile(null); setImagePreview('');
-    setTargetTrack(user?.academic_track || 'IB'); setTargetClass('');
+    setTargetTrack(user?.academic_track || 'IB'); setTargetClass(user?.role === 'mentor' ? (user?.class_year || '') : '');
     setTargetMentorId(''); setMentorsForClass([]);
     setIsPinned(false); setIsUrgent(false);
     setShowModal(true);
@@ -372,11 +372,18 @@ export default function AnnouncementsPage() {
                 >
                   {canPostSchoolWide && <option value="school_wide">School-wide (All Students & Staff)</option>}
                   {canPostTrack && <option value="academic_track">Academic Track</option>}
+                  {canPostMentorGroup && <option value="academic_track">My Class</option>}
                   {canPostMentorGroup && <option value="mentor_group">My Mentor Group</option>}
                 </select>
               </div>
 
-              {scope === 'academic_track' && (
+              {scope === 'academic_track' && user?.role === 'mentor' && (
+                <div className="rounded-lg border border-[#2383c9]/20 bg-[#e4f2fe]/50 px-3.5 py-3 text-xs text-[#1a2b49]">
+                  This announcement will be shared with students in your class: <strong>{user.academic_track} · {user.class_year}</strong>.
+                </div>
+              )}
+
+              {scope === 'academic_track' && user?.role !== 'mentor' && (
                 <div className="space-y-3">
                   <div>
                     <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">Target Track</label>

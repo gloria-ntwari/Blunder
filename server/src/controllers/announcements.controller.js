@@ -3,7 +3,8 @@ import { uploadImage } from '../config/cloudinary.js';
 import { emitAnnouncement, emitDataChanged } from '../socket/index.js';
 
 const canPost = (user) =>
-  ['super_admin', 'admin', 'mentor'].includes(user.role);
+  ['super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor'].includes(user.role) ||
+  Boolean(user.can_post_school_wide);
 
 // ── GET /api/announcements ────────────────────────────────────────────────────
 export const getAnnouncements = async (req, res, next) => {
@@ -13,16 +14,23 @@ export const getAnnouncements = async (req, res, next) => {
     const u = req.user;
 
     // Build scope filter based on user's membership
-    const scopeConditions = [`scope = 'school_wide'`];
+    const scopeConditions = [`a.scope = 'school_wide'`];
+    const scopeParams = [];
 
     if (u.academic_track) {
+      scopeParams.push(u.academic_track);
+      const trackParam = `$${scopeParams.length}`;
+      scopeParams.push(u.class_year || null);
+      const classParam = `$${scopeParams.length}`;
       scopeConditions.push(
-        `(scope = 'academic_track' AND target_track = '${u.academic_track}')`
+        `(a.scope = 'academic_track' AND a.target_track = ${trackParam}
+          AND (a.target_class IS NULL OR a.target_class = ${classParam}))`
       );
     }
     if (u.mentor_group_id) {
+      scopeParams.push(u.mentor_group_id);
       scopeConditions.push(
-        `(scope = 'mentor_group' AND target_mentor_group_id = '${u.mentor_group_id}')`
+        `(a.scope = 'mentor_group' AND a.target_mentor_group_id = $${scopeParams.length})`
       );
     }
 
@@ -32,18 +40,22 @@ export const getAnnouncements = async (req, res, next) => {
         ? ''
         : `WHERE (${scopeConditions.join(' OR ')})`;
 
+    const listParams = [...scopeParams, limit, offset];
+    const limitParam = `$${scopeParams.length + 1}`;
+    const offsetParam = `$${scopeParams.length + 2}`;
+
     const result = await query(
       `SELECT a.*, u.full_name as author_name, u.avatar_url as author_avatar
        FROM announcements a
        LEFT JOIN users u ON a.created_by = u.id
        ${where}
        ORDER BY a.is_pinned DESC, a.created_at DESC
-       LIMIT $1 OFFSET $2`,
-      [limit, offset]
+       LIMIT ${limitParam} OFFSET ${offsetParam}`,
+      listParams
     );
 
     const countResult = await query(
-      `SELECT COUNT(*) FROM announcements a ${where}`, []
+      `SELECT COUNT(*) FROM announcements a ${where}`, scopeParams
     );
 
     res.json({
@@ -73,18 +85,28 @@ export const createAnnouncement = async (req, res, next) => {
   try {
     const { title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent } = req.body;
     const u = req.user;
+    if (!canPost(u)) return res.status(403).json({ message: 'You do not have permission to post announcements' });
     const image_url = req.file ? await uploadImage(req.file.buffer, 'blunder/announcements') : null;
 
-    // Mentors can only post mentor_group announcements for their own group
+    // Mentors can post only to their own mentor group or their own class.
     if (u.role === 'mentor') {
-      if (scope !== 'mentor_group')
-        return res.status(403).json({ message: 'Mentors can only post mentor-group announcements' });
+      if (!['mentor_group', 'academic_track'].includes(scope))
+        return res.status(403).json({ message: 'Mentors can only post to their mentor group or class' });
+
+      if (scope === 'academic_track' &&
+        (target_track !== u.academic_track || target_class !== u.class_year)) {
+        return res.status(403).json({ message: 'You can only post announcements for your own class' });
+      }
 
       const myGroup = await query(
         'SELECT id FROM mentor_groups WHERE mentor_user_id = $1 OR id = $2', [u.id, u.mentor_group_id || null]
       );
-      if (!myGroup.rows.length || (target_mentor_group_id && !myGroup.rows.some(r => r.id === target_mentor_group_id)))
+      if (scope === 'mentor_group' && (!myGroup.rows.length || (target_mentor_group_id && !myGroup.rows.some(r => r.id === target_mentor_group_id))))
         return res.status(403).json({ message: 'You can only post for your own mentor group' });
+    }
+
+    if (u.can_post_school_wide && u.role === 'student' && scope !== 'school_wide') {
+      return res.status(403).json({ message: 'You are permitted to post school-wide announcements only' });
     }
 
     // School leaders can only post for their academic track
@@ -116,6 +138,7 @@ export const createAnnouncement = async (req, res, next) => {
 // ── PUT /api/announcements/:id ────────────────────────────────────────────────
 export const updateAnnouncement = async (req, res, next) => {
   try {
+    if (!canPost(req.user)) return res.status(403).json({ message: 'You do not have permission to edit announcements' });
     const { title, body, is_pinned, is_urgent } = req.body;
     const image_url = req.file ? await uploadImage(req.file.buffer, 'blunder/announcements') : undefined;
     const result = await query(
