@@ -9,8 +9,9 @@ const canPost = (user) =>
 // ── GET /api/announcements ────────────────────────────────────────────────────
 export const getAnnouncements = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
-    const offset = (page - 1) * limit;
+    const pageNumber = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
+    const limitNumber = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 20, 1), 100);
+    const offset = (pageNumber - 1) * limitNumber;
     const u = req.user;
 
     // Build scope filter based on user's membership
@@ -39,10 +40,7 @@ export const getAnnouncements = async (req, res, next) => {
       ['super_admin', 'admin'].includes(u.role)
         ? ''
         : `WHERE (${scopeConditions.join(' OR ')})`;
-
-    const listParams = [...scopeParams, limit, offset];
-    const limitParam = `$${scopeParams.length + 1}`;
-    const offsetParam = `$${scopeParams.length + 2}`;
+    const queryParams = where ? scopeParams : [];
 
     const result = await query(
       `SELECT a.*, u.full_name as author_name, u.avatar_url as author_avatar
@@ -50,18 +48,18 @@ export const getAnnouncements = async (req, res, next) => {
        LEFT JOIN users u ON a.created_by = u.id
        ${where}
        ORDER BY a.is_pinned DESC, a.created_at DESC
-       LIMIT ${limitParam} OFFSET ${offsetParam}`,
-      listParams
+       LIMIT ${limitNumber} OFFSET ${offset}`,
+      queryParams
     );
 
     const countResult = await query(
-      `SELECT COUNT(*) FROM announcements a ${where}`, scopeParams
+      `SELECT COUNT(*) FROM announcements a ${where}`, queryParams
     );
 
     res.json({
       announcements: result.rows,
       total: parseInt(countResult.rows[0].count),
-      page: parseInt(page),
+      page: pageNumber,
     });
   } catch (err) { next(err); }
 };

@@ -10,8 +10,9 @@ export const getEvents = async (req, res, next) => {
     const params = [];
     const conditions = [];
 
-    if (from) { params.push(from); conditions.push(`event_date >= $${params.length}`); }
-    if (to)   { params.push(to);   conditions.push(`event_date <= $${params.length}`); }
+    // A multi-day event is visible for every month/day it overlaps.
+    if (from) { params.push(from); conditions.push(`COALESCE(e.end_date, e.event_date) >= $${params.length}`); }
+    if (to)   { params.push(to);   conditions.push(`e.event_date <= $${params.length}`); }
 
     // Scope filter for non-admin roles
     if (!['super_admin', 'admin'].includes(u.role)) {
@@ -49,14 +50,17 @@ export const getEvents = async (req, res, next) => {
 
 export const createEvent = async (req, res, next) => {
   try {
-    const { title, description, event_date, start_time, end_time, location, scope, target_track, target_class, target_mentor_group_id } = req.body;
+    const { title, description, event_date, end_date, start_time, end_time, location, scope, target_track, target_class, target_mentor_group_id } = req.body;
+    if (end_date && event_date && end_date < event_date) {
+      return res.status(400).json({ message: 'End date cannot be before the start date' });
+    }
     let image_url = null;
     if (req.file) image_url = await uploadImage(req.file.buffer, 'blunder/events');
 
     const result = await query(
-      `INSERT INTO events (title, description, event_date, start_time, end_time, location, scope, target_track, target_class, target_mentor_group_id, image_url, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [title, description, event_date, start_time, end_time, location, scope || 'school', target_track || null, target_class || null, target_mentor_group_id || null, image_url, req.user.id]
+      `INSERT INTO events (title, description, event_date, end_date, start_time, end_time, location, scope, target_track, target_class, target_mentor_group_id, image_url, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [title, description, event_date, end_date || null, start_time, end_time, location, scope || 'school', target_track || null, target_class || null, target_mentor_group_id || null, image_url, req.user.id]
     );
 
     const io = req.app.get('io');
@@ -68,15 +72,18 @@ export const createEvent = async (req, res, next) => {
 
 export const updateEvent = async (req, res, next) => {
   try {
-    const { title, description, event_date, start_time, end_time, location } = req.body;
+    const { title, description, event_date, end_date, start_time, end_time, location } = req.body;
+    if (end_date && event_date && end_date < event_date) {
+      return res.status(400).json({ message: 'End date cannot be before the start date' });
+    }
     const result = await query(
       `UPDATE events SET
          title = COALESCE($1, title), description = COALESCE($2, description),
-         event_date = COALESCE($3, event_date), start_time = COALESCE($4, start_time),
-         end_time = COALESCE($5, end_time), location = COALESCE($6, location),
+         event_date = COALESCE($3, event_date), end_date = $4,
+         start_time = COALESCE($5, start_time), end_time = COALESCE($6, end_time), location = COALESCE($7, location),
          updated_at = NOW()
-       WHERE id = $7 RETURNING *`,
-      [title, description, event_date, start_time, end_time, location, req.params.id]
+       WHERE id = $8 RETURNING *`,
+      [title, description, event_date, end_date || null, start_time, end_time, location, req.params.id]
     );
     if (!result.rows.length) return res.status(404).json({ message: 'Event not found' });
     res.json(result.rows[0]);

@@ -20,6 +20,11 @@ import Modal from '../../components/layout/Modal.jsx';
 import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 import { getClassesForTrack } from '../../utils/academicTracks';
 
+const isEventOnDay = (event, day) => {
+  const dayKey = format(day, 'yyyy-MM-dd');
+  return event.event_date <= dayKey && (event.end_date || event.event_date) >= dayKey;
+};
+
 export default function CalendarPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
@@ -34,6 +39,7 @@ export default function CalendarPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [eventDate, setEventDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState('');
   const [startTime, setStartTime] = useState('14:00');
   const [endTime, setEndTime] = useState('15:30');
   const [location, setLocation] = useState('');
@@ -84,6 +90,7 @@ export default function CalendarPage() {
     setEditingEvent(null);
     setTitle(''); setDescription(''); setLocation('');
     setEventDate(format(selectedDay, 'yyyy-MM-dd'));
+    setEndDate('');
     setStartTime('14:00'); setEndTime('15:30');
     setScope('school'); setTargetTrack(user?.academic_track || 'IB');
     setTargetClass(''); setTargetMentorId(''); setMentorsForClass([]);
@@ -97,6 +104,7 @@ export default function CalendarPage() {
     setDescription(ev.description || '');
     setLocation(ev.location || '');
     setEventDate(ev.event_date ? format(new Date(ev.event_date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
+    setEndDate(ev.end_date ? format(new Date(ev.end_date), 'yyyy-MM-dd') : '');
     setStartTime(ev.start_time ? ev.start_time.substring(0, 5) : '14:00');
     setEndTime(ev.end_time ? ev.end_time.substring(0, 5) : '15:30');
     setScope(ev.scope || 'school');
@@ -120,6 +128,7 @@ export default function CalendarPage() {
     formData.append('title', title);
     formData.append('description', description);
     formData.append('event_date', eventDate);
+    if (endDate) formData.append('end_date', endDate);
     formData.append('start_time', startTime);
     formData.append('end_time', endTime);
     formData.append('location', location);
@@ -142,7 +151,7 @@ export default function CalendarPage() {
       }
       setShowModal(false);
       setEditingEvent(null);
-      setTitle(''); setDescription(''); setLocation(''); setTargetClass('');
+      setTitle(''); setDescription(''); setLocation(''); setEventDate(format(new Date(), 'yyyy-MM-dd')); setEndDate(''); setTargetClass('');
       setTargetMentorId(''); setMentorsForClass([]);
       setEventImage(null); setImagePreview('');
       fetchEvents();
@@ -175,7 +184,7 @@ export default function CalendarPage() {
   });
 
   const eventsOnSelectedDay = events.filter((e) =>
-    isSameDay(new Date(e.event_date), selectedDay)
+    isEventOnDay(e, selectedDay)
   );
 
   return (
@@ -246,7 +255,7 @@ export default function CalendarPage() {
             {daysInMonth.map((day) => {
               const isSelected = isSameDay(day, selectedDay);
               const isToday = isSameDay(day, new Date());
-              const dayEvents = events.filter((e) => isSameDay(new Date(e.event_date), day));
+              const dayEvents = events.filter((e) => isEventOnDay(e, day));
 
               return (
                 <div
@@ -337,6 +346,12 @@ export default function CalendarPage() {
                     <h4 className="font-bold text-sm text-[#0f172a]">{ev.title}</h4>
 
                     <div className="space-y-1 text-xs text-[#64748b]">
+                      {ev.end_date && (
+                        <div className="flex items-center gap-1.5">
+                          <CalendarIcon className="w-3.5 h-3.5 text-[#2383c9]" />
+                          <span>{format(new Date(ev.event_date), 'd MMM yyyy')} – {format(new Date(ev.end_date), 'd MMM yyyy')}</span>
+                        </div>
+                      )}
                       {ev.start_time && (
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-[#64748b]" />
@@ -392,8 +407,16 @@ export default function CalendarPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#0f172a] mb-1">Date</label>
+                <label className="block text-xs font-semibold text-[#0f172a] mb-1">Start Date</label>
                 <input type="date" required value={eventDate} onChange={(e) => setEventDate(e.target.value)}
+                  className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#0f172a] mb-1">
+                  End Date <span className="font-normal text-[#64748b]">(optional)</span>
+                </label>
+                <input type="date" min={eventDate} value={endDate} onChange={(e) => setEndDate(e.target.value)}
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]" />
               </div>
 
