@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "B.Lunder",
+    "appName": "B- Lunder",
     "tagline": "Ein bisschen näher. Jeden Tag.",
     "loading": "Laden...",
     "save": "Speichern",
@@ -35,7 +35,7 @@
     "passwordPlaceholder": "Mindestens 8 Zeichen",
     "forgotPassword": "Passwort vergessen?",
     "signIn": "Anmelden →",
-    "noAccount": "Neu bei B.Lunder?",
+    "noAccount": "Neu bei B- Lunder?",
     "createAccount": "Konto erstellen",
     "haveAccount": "Hast du bereits ein Konto?",
     "register": "Konto erstellen",

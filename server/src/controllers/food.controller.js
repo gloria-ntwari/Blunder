@@ -19,7 +19,13 @@ export const getFoodMenu = async (req, res, next) => {
        FROM food_menu fm
        LEFT JOIN users u ON fm.created_by = u.id
        ${where}
-       ORDER BY fm.menu_date, fm.meal_type`,
+       ORDER BY fm.menu_date,
+         CASE fm.meal_type
+           WHEN 'breakfast' THEN 1
+           WHEN 'lunch' THEN 2
+           WHEN 'snack' THEN 3
+           WHEN 'dinner' THEN 4
+         END`,
       params
     );
     res.json(result.rows);
@@ -30,7 +36,14 @@ export const getFoodMenu = async (req, res, next) => {
 export const getTodayMenu = async (req, res, next) => {
   try {
     const result = await query(
-      `SELECT * FROM food_menu WHERE menu_date = CURRENT_DATE ORDER BY meal_type`
+      `SELECT * FROM food_menu
+       WHERE menu_date = CURRENT_DATE
+       ORDER BY CASE meal_type
+         WHEN 'breakfast' THEN 1
+         WHEN 'lunch' THEN 2
+         WHEN 'snack' THEN 3
+         WHEN 'dinner' THEN 4
+       END`
     );
     res.json(result.rows);
   } catch (err) { next(err); }

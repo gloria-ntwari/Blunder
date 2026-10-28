@@ -65,7 +65,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
         <button type="button" onClick={onMenuClick} aria-label="Open navigation" className="p-2 -ml-1 rounded-lg text-slate-600 hover:bg-slate-100 lg:hidden shrink-0">
           <Menu className="w-5 h-5" />
         </button>
-        {/* B.Lunder brand */}
+        {/* B- Lunder brand */}
         <div className="flex items-center gap-2 shrink-0">
           <img
             src="/assets/louisenlund_logo.png"
@@ -74,7 +74,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
           />
           <div className="flex items-center gap-1.5">
-            <span className="font-bold text-lg tracking-tight text-[#0f172a]">B.Lunder</span>
+        <span className="font-bold text-lg tracking-tight text-[#0f172a]">B- Lunder</span>
             <span className="w-1.5 h-1.5 rounded-full bg-[#f97316]"></span>
           </div>
         </div>

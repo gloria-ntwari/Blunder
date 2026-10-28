@@ -63,7 +63,7 @@ export default function LoginPage() {
             className="w-11 h-11 object-contain rounded-full bg-white/10 p-1 backdrop-blur-xs"
           />
           <div>
-            <h1 className="text-xl font-bold tracking-tight">B.Lunder</h1>
+            <h1 className="text-xl font-bold tracking-tight">B- Lunder</h1>
             <p className="text-[10px] text-white/70 tracking-widest uppercase">The Louisenlund Community</p>
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function LoginPage() {
             <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a2e] tracking-tight">
               {t('auth.loginTitle', 'Welcome back!!!')}
             </h2>
-            <p className="mt-1.5 text-xs md:text-sm text-gray-500">
+            <p className="mt-1.5 text-[16px] text-gray-500">
               {t('auth.loginSubtitle', "A new day, new possibilities. Let's get you signed in.")}
             </p>
           </div>
@@ -111,7 +111,7 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+              <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">
                 {t('auth.email', 'Email address')}
               </label>
               <input
@@ -120,13 +120,13 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@louisenlund.de or you@gmail.com"
-                className="w-full bg-white text-xs text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e]  focus:outline-hidden transition-all placeholder:text-gray-400"
+                className="w-full bg-white text-[15px] text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e]  focus:outline-hidden transition-all placeholder:text-gray-400"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-semibold text-gray-700">
+                <label className="text-[16px] font-semibold text-gray-700">
                   {t('auth.password', 'Password')}
                 </label>
                 <Link
@@ -143,7 +143,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t('auth.passwordPlaceholder', 'At least 8 characters')}
-                  className="w-full bg-white text-xs text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e]  focus:ring-[#2383c9]/20 focus:outline-hidden transition-all pr-10 placeholder:text-gray-400"
+                  className="w-full bg-white text-[15px] text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e]  focus:ring-[#2383c9]/20 focus:outline-hidden transition-all pr-10 placeholder:text-gray-400"
                 />
                 <button
                   type="button"
@@ -158,7 +158,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-3.5 px-4 bg-[#1a2b49] hover:bg-[#14223b] text-white font-semibold text-xs md:text-sm rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+              className="w-full mt-2 py-3.5 px-4 bg-[#1a2b49] hover:bg-[#14223b] text-white font-semibold text-[15px] rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -169,9 +169,9 @@ export default function LoginPage() {
           </form>
 
           {/* No account link & invitation activation */}
-          <div className="space-y-2 text-center text-xs text-gray-500">
+          <div className="space-y-2 text-center text-[15px] text-gray-500">
             <p>
-              {t('auth.noAccount', 'No B.Lunder account yet?')}{' '}
+              {t('auth.noAccount', 'No B- Lunder account yet?')}{' '}
               <Link to="/register" className="text-[#1a1a2e] font-semibold hover:underline">
                 {t('auth.createAccount', 'Create an account')}
               </Link>

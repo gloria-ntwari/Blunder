@@ -110,7 +110,7 @@ export default function RegisterPage() {
         <div className="relative z-10 flex items-center gap-3">
           <img src="/assets/louisenlund_logo.png" alt="Louisenlund" className="w-11 h-11 object-contain rounded-full bg-white/10 p-1 backdrop-blur-xs" />
           <div>
-            <h1 className="text-xl font-bold tracking-tight">B.Lunder</h1>
+            <h1 className="text-xl font-bold tracking-tight">B- Lunder</h1>
             <p className="text-[10px] text-white/70 tracking-widest uppercase">The Louisenlund Community</p>
           </div>
         </div>
@@ -147,7 +147,7 @@ export default function RegisterPage() {
             <>
               <div>
                 <h2 className="text-2xl md:text-3xl font-semibold text-[#1a1a2e] tracking-tight">{t('auth.step1Title', 'Create your account')}</h2>
-                <p className="mt-1.5 text-xs md:text-sm text-gray-500">{t('auth.step1Subtitle', 'Start with your name and login details.')}</p>
+                <p className="mt-1.5 text-[16px] text-gray-500">{t('auth.step1Subtitle', 'Start with your name and login details.')}</p>
               </div>
               <form onSubmit={handleStep1Submit} className="space-y-4">
                 <div>
@@ -161,35 +161,35 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('auth.fullName', 'Full name')}</label>
+                  <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">{t('auth.fullName', 'Full name')}</label>
                   <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Alex Linden"
-                    className="w-full bg-white text-xs text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all placeholder:text-gray-400" />
+                    className="w-full bg-white text-[15px] text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all placeholder:text-gray-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('auth.email', 'Email address')}</label>
+                  <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">{t('auth.email', 'Email address')}</label>
                   <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@louisenlund.de or you@gmail.com"
-                    className="w-full bg-white text-xs text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all placeholder:text-gray-400" />
+                    className="w-full bg-white text-[15px] text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all placeholder:text-gray-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('auth.password', 'Password')}</label>
+                  <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">{t('auth.password', 'Password')}</label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       required value={password} onChange={(e) => setPassword(e.target.value)}
                       placeholder="Min 8 chars, letters & numbers"
-                      className="w-full bg-white text-xs text-gray-800 px-4 py-3 pr-10 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all placeholder:text-gray-400"
+                      className="w-full bg-white text-[15px] text-gray-800 px-4 py-3 pr-10 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all placeholder:text-gray-400"
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <p className="text-[10px] text-[#64748b] mt-1">Must be 8+ characters with at least one letter and one number.</p>
+                  <p className="text-[12px] text-[#64748b] mt-1">Must be 8+ characters with at least one letter and one number.</p>
                 </div>
                 <button type="submit" disabled={loading}
-                  className="w-full mt-2 py-3.5 px-4 bg-[#1a2b49] hover:bg-[#14223b] text-white font-semibold text-xs md:text-sm rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer">
+                  className="w-full mt-2 py-3.5 px-4 bg-[#1a2b49] hover:bg-[#14223b] text-white font-semibold text-[15px] rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer">
                   {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><span>{t('common.next', 'Next: Academic Details')}</span><ArrowRight className="w-4 h-4" /></>}
                 </button>
               </form>
@@ -198,11 +198,11 @@ export default function RegisterPage() {
             <>
               <div>
                 <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a2e] tracking-tight">{t('auth.step2Title', 'Tell us about you')}</h2>
-                <p className="mt-1.5 text-xs md:text-sm text-gray-500">{role === 'teacher' ? 'Select the academic track you belong to.' : t('auth.step2Subtitle', 'Select your academic track, class, and mentor.')}</p>
+                <p className="mt-1.5 text-[16px] text-gray-500">{role === 'teacher' ? 'Select the academic track you belong to.' : t('auth.step2Subtitle', 'Select your academic track, class, and mentor.')}</p>
               </div>
               <form onSubmit={handleStep2Submit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-2">{t('auth.academicTrack', '1. Academic Track')}</label>
+                  <label className="block text-[16px] font-semibold text-gray-700 mb-2">{t('auth.academicTrack', '1. Academic Track')}</label>
                   <div className="grid grid-cols-3 gap-2">
                     {['IB', 'MINT', 'Abitur'].map((track) => (
                       <button key={track} type="button" onClick={() => setAcademicTrack(track)}
@@ -213,19 +213,19 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 {role === 'student' && <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('auth.classYear', '2. Class / Year Level')}</label>
+                  <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">{t('auth.classYear', '2. Class / Year Level')}</label>
                   <select value={classYear} onChange={(e) => setClassYear(e.target.value)}
-                    className="w-full bg-white text-xs text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all">
+                    className="w-full bg-white text-[15px] text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all">
                     {getClassesForTrack(academicTrack).map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>}
                 {role === 'student' && <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">{t('auth.mentor', '3. Select Your Mentor Group')}</label>
+                  <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">{t('auth.mentor', '3. Select Your Mentor Group')}</label>
                   {loadingMentors ? (
                     <div className="text-xs text-gray-400 py-2">Loading mentor groups...</div>
                   ) : mentors.length > 0 ? (
                     <select value={mentorId} onChange={(e) => setMentorId(e.target.value)}
-                      className="w-full bg-white text-xs text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all">
+                      className="w-full bg-white text-[15px] text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e] focus:outline-hidden transition-all">
                       {mentors.map((m) => (
                         <option key={m.id} value={m.id}>
                           {m.name}{m.mentor_name ? ` — ${m.mentor_name}` : ''}
@@ -242,14 +242,14 @@ export default function RegisterPage() {
                   <button type="button" onClick={() => setStep(1)}
                     className="py-3 px-4 rounded-lg border border-gray-200 hover:bg-gray-50 text-xs font-semibold text-gray-600 transition-colors">Back</button>
                   <button type="submit" disabled={loading}
-                    className="flex-1 py-3.5 px-4 bg-[#1a2b49] hover:bg-[#14223b] text-white font-semibold text-xs md:text-sm rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer">
+                    className="flex-1 py-3.5 px-4 bg-[#1a2b49] hover:bg-[#14223b] text-white font-semibold text-[15px] rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer">
                     {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><CheckCircle2 className="w-4 h-4" /><span>Complete Registration</span></>}
                   </button>
                 </div>
               </form>
             </>
           )}
-          <p className="text-center text-xs text-gray-500">
+          <p className="text-center text-[15px] text-gray-500">
             {t('auth.haveAccount', 'Already have an account?')}{' '}
             <Link to="/login" className="text-[#1a1a2e] font-semibold hover:underline">{t('auth.login', 'Sign in')}</Link>
           </p>

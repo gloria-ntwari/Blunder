@@ -47,7 +47,7 @@ function AppInner() {
       <div className="flex items-center justify-center min-h-screen bg-[#f8fafb]">
         <div className="flex flex-col items-center gap-3 animate-fade-in">
           <div className="w-10 h-10 border-3 border-[#2383c9] border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-[#6b7280] font-medium">Loading B.Lunder...</span>
+          <span className="text-sm text-[#6b7280] font-medium">Loading B- Lunder...</span>
         </div>
       </div>
     );

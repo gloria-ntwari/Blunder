@@ -1,7 +1,7 @@
 {
   "name": "blunder-server",
   "version": "1.0.0",
-  "description": "B.Lunder campus platform backend",
+  "description": "B- Lunder campus platform backend",
   "main": "index.js",
   "type": "module",
   "scripts": {

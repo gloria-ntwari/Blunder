@@ -41,7 +41,7 @@ export const emitDataChanged = (io, entity, record) => {
   sendPushToAll({
     title: `New ${labels[entity] || 'update'}`,
     // Keep the push generic because some records are scoped to a track/group.
-    body: 'Open B.Lunder to view the latest update.',
+    body: 'Open B- Lunder to view the latest update.',
     tag: `blunder-${entity}-${record?.id || Date.now()}`,
     url: entity === 'announcement' ? '/announcements' : '/dashboard',
   }).catch(console.error);

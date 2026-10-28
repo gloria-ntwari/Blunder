@@ -1,7 +1,7 @@
 {
   "name": "blunder",
   "version": "1.0.0",
-  "description": "B.Lunder — Centralised Louisenlund Campus Platform",
+  "description": "B- Lunder — Centralised Louisenlund Campus Platform",
   "scripts": {
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",

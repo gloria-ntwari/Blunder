@@ -37,7 +37,7 @@ export const createNotificationsForChange = async (entity, record) => {
   }
 
   const title = record.title || record.item_name || label[1];
-  const body = record.body || record.description || 'A new update is available in B.Lunder.';
+  const body = record.body || record.description || 'A new update is available in B- Lunder.';
   params.push(label[0], title, body, entity, record.id);
   const offset = params.length - 5;
 

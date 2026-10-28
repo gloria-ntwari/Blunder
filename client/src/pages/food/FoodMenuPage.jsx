@@ -230,7 +230,7 @@ export default function FoodMenuPage() {
 
       {/* Meal Category Filter Pills */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {['all', 'breakfast', 'lunch', 'dinner', 'snack'].map((type) => (
+        {['all', 'breakfast', 'lunch', 'snack', 'dinner'].map((type) => (
           <button
             key={type}
             onClick={() => setSelectedMealType(type)}
@@ -400,8 +400,8 @@ export default function FoodMenuPage() {
                 >
                   <option value="breakfast">Breakfast</option>
                   <option value="lunch">Lunch</option>
-                  <option value="dinner">Dinner</option>
                   <option value="snack">Snack</option>
+                  <option value="dinner">Dinner</option>
                 </select>
               </div>
 
