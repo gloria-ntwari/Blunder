@@ -41,16 +41,40 @@ export const getAnnouncements = async (req, res, next) => {
         ? ''
         : `WHERE (${scopeConditions.join(' OR ')})`;
     const queryParams = where ? scopeParams : [];
+    const userParamIndex = queryParams.length + 1;
 
     const result = await query(
-      `SELECT a.*, u.full_name as author_name, u.avatar_url as author_avatar
+      `SELECT a.*, u.full_name as author_name, u.avatar_url as author_avatar,
+         (SELECT COUNT(*) FROM announcement_views v WHERE v.announcement_id = a.id)::int AS view_count,
+         (SELECT COUNT(*) FROM announcement_reactions r WHERE r.announcement_id = a.id AND r.reaction = '❤️')::int AS heart_count,
+         (SELECT COUNT(*) FROM announcement_reactions r WHERE r.announcement_id = a.id AND r.reaction = '👍')::int AS like_count,
+         (SELECT COUNT(*) FROM announcement_reactions r WHERE r.announcement_id = a.id AND r.reaction = '😂')::int AS laugh_count,
+         (SELECT COALESCE(jsonb_object_agg(reaction, cnt), '{}'::jsonb) FROM (SELECT reaction, COUNT(*)::int AS cnt FROM announcement_reactions WHERE announcement_id = a.id GROUP BY reaction) rc) AS reaction_counts,
+         (SELECT COALESCE(jsonb_agg(reaction), '[]'::jsonb) FROM announcement_reactions WHERE announcement_id = a.id AND user_id = $${userParamIndex}) AS user_reactions,
+         EXISTS (SELECT 1 FROM announcement_reactions r WHERE r.announcement_id = a.id AND r.user_id = $${userParamIndex} AND r.reaction = '❤️') AS user_hearted,
+         EXISTS (SELECT 1 FROM announcement_reactions r WHERE r.announcement_id = a.id AND r.user_id = $${userParamIndex} AND r.reaction = '👍') AS user_liked,
+         EXISTS (SELECT 1 FROM announcement_reactions r WHERE r.announcement_id = a.id AND r.user_id = $${userParamIndex} AND r.reaction = '😂') AS user_laughed,
+         (SELECT COUNT(*) FROM announcement_votes v WHERE v.announcement_id = a.id AND v.answer = 'yes')::int AS yes_count,
+         (SELECT COUNT(*) FROM announcement_votes v WHERE v.announcement_id = a.id AND v.answer = 'no')::int AS no_count,
+         (SELECT answer FROM announcement_votes v WHERE v.announcement_id = a.id AND v.user_id = $${userParamIndex}) AS user_vote
        FROM announcements a
        LEFT JOIN users u ON a.created_by = u.id
        ${where}
        ORDER BY a.is_pinned DESC, a.created_at DESC
        LIMIT ${limitNumber} OFFSET ${offset}`,
-      queryParams
+      [...queryParams, u.id]
     );
+
+    if (result.rows.length) {
+      const ids = result.rows.map((row) => row.id);
+      const viewed = await query(
+        `INSERT INTO announcement_views (announcement_id, user_id)
+         SELECT unnest($1::uuid[]), $2 ON CONFLICT DO NOTHING RETURNING announcement_id`,
+        [ids, u.id]
+      );
+      const newlyViewed = new Set(viewed.rows.map((row) => row.announcement_id));
+      result.rows.forEach((row) => { if (newlyViewed.has(row.id)) row.view_count += 1; });
+    }
 
     const countResult = await query(
       `SELECT COUNT(*) FROM announcements a ${where}`, queryParams
@@ -61,6 +85,35 @@ export const getAnnouncements = async (req, res, next) => {
       total: parseInt(countResult.rows[0].count),
       page: pageNumber,
     });
+  } catch (err) { next(err); }
+};
+
+export const reactToAnnouncement = async (req, res, next) => {
+  try {
+    const { reaction } = req.body;
+    if (typeof reaction !== 'string' || [...reaction].length > 8) return res.status(400).json({ message: 'Invalid reaction' });
+    const exists = await query('SELECT 1 FROM announcements WHERE id = $1', [req.params.id]);
+    if (!exists.rows.length) return res.status(404).json({ message: 'Announcement not found' });
+    const current = await query('SELECT 1 FROM announcement_reactions WHERE announcement_id = $1 AND user_id = $2 AND reaction = $3', [req.params.id, req.user.id, reaction]);
+    if (current.rows.length) {
+      await query('DELETE FROM announcement_reactions WHERE announcement_id = $1 AND user_id = $2 AND reaction = $3', [req.params.id, req.user.id, reaction]);
+    } else {
+      await query('INSERT INTO announcement_reactions (announcement_id, user_id, reaction) VALUES ($1, $2, $3)', [req.params.id, req.user.id, reaction]);
+    }
+    res.json({ active: !current.rows.length });
+  } catch (err) { next(err); }
+};
+
+export const voteOnAnnouncement = async (req, res, next) => {
+  try {
+    const answer = String(req.body.answer || '').toLowerCase();
+    if (!['yes', 'no'].includes(answer)) return res.status(400).json({ message: 'Choose yes or no' });
+    const result = await query('SELECT poll_enabled FROM announcements WHERE id = $1', [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ message: 'Announcement not found' });
+    if (!result.rows[0].poll_enabled) return res.status(400).json({ message: 'This announcement has no poll' });
+    await query(`INSERT INTO announcement_votes (announcement_id, user_id, answer) VALUES ($1, $2, $3)
+      ON CONFLICT (announcement_id, user_id) DO UPDATE SET answer = EXCLUDED.answer, created_at = NOW()`, [req.params.id, req.user.id, answer]);
+    res.json({ answer });
   } catch (err) { next(err); }
 };
 
@@ -81,7 +134,7 @@ export const getAnnouncementById = async (req, res, next) => {
 // ── POST /api/announcements ───────────────────────────────────────────────────
 export const createAnnouncement = async (req, res, next) => {
   try {
-    const { title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent } = req.body;
+    const { title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, poll_enabled } = req.body;
     const u = req.user;
     if (!canPost(u)) return res.status(403).json({ message: 'You do not have permission to post announcements' });
     const image_url = req.file ? await uploadImage(req.file.buffer, 'blunder/announcements') : null;
@@ -118,11 +171,11 @@ export const createAnnouncement = async (req, res, next) => {
 
     const result = await query(
       `INSERT INTO announcements
-         (title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, image_url, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+         (title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, image_url, created_by, poll_enabled)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [title, body, scope || 'school_wide', target_track || null, target_class || null,
        target_mentor_group_id || null, is_pinned === 'true' || is_pinned === true,
-       is_urgent === 'true' || is_urgent === true, image_url, u.id]
+       is_urgent === 'true' || is_urgent === true, image_url, u.id, poll_enabled === 'true' || poll_enabled === true]
     );
 
     const io = req.app.get('io');
@@ -137,17 +190,18 @@ export const createAnnouncement = async (req, res, next) => {
 export const updateAnnouncement = async (req, res, next) => {
   try {
     if (!canPost(req.user)) return res.status(403).json({ message: 'You do not have permission to edit announcements' });
-    const { title, body, is_pinned, is_urgent } = req.body;
+    const { title, body, is_pinned, is_urgent, poll_enabled } = req.body;
     const image_url = req.file ? await uploadImage(req.file.buffer, 'blunder/announcements') : undefined;
     const result = await query(
       `UPDATE announcements SET
          title = COALESCE($1, title), body = COALESCE($2, body),
          is_pinned = COALESCE($3, is_pinned), is_urgent = COALESCE($4, is_urgent),
-         image_url = COALESCE($5, image_url), updated_at = NOW()
-       WHERE id = $6 AND created_by = $7 RETURNING *`,
+         image_url = COALESCE($5, image_url), poll_enabled = COALESCE($6, poll_enabled), updated_at = NOW()
+       WHERE id = $7 AND created_by = $8 RETURNING *`,
       [title, body, is_pinned === undefined ? null : is_pinned === 'true' || is_pinned === true,
        is_urgent === undefined ? null : is_urgent === 'true' || is_urgent === true,
-       image_url, req.params.id, req.user.id]
+       image_url, poll_enabled === undefined ? null : poll_enabled === 'true' || poll_enabled === true,
+       req.params.id, req.user.id]
     );
     if (!result.rows.length)
       return res.status(404).json({ message: 'Not found or not your announcement' });

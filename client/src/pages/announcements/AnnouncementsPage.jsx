@@ -9,6 +9,9 @@ import {
   Trash2,
   Edit2,
   ImagePlus,
+  Eye,
+  EyeOff,
+  SmilePlus,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useSocket } from '../../context/SocketContext.jsx';
@@ -19,6 +22,7 @@ import { format } from 'date-fns';
 import Modal from '../../components/layout/Modal.jsx';
 import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 import { getClassesForTrack } from '../../utils/academicTracks';
+import { BrowserRouter } from 'react-router-dom';
 
 export default function AnnouncementsPage() {
   const { t } = useTranslation();
@@ -26,6 +30,8 @@ export default function AnnouncementsPage() {
   const socket = useSocket();
 
   const [announcements, setAnnouncements] = useState([]);
+  const [hiddenViews, setHiddenViews] = useState({});
+  const [openReactionPicker, setOpenReactionPicker] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +50,7 @@ export default function AnnouncementsPage() {
   const [loadingMentors, setLoadingMentors] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [isUrgent, setIsUrgent] = useState(false);
+  const [pollEnabled, setPollEnabled] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmState, setConfirmState] = useState({ open: false, id: null });
 
@@ -77,6 +84,7 @@ export default function AnnouncementsPage() {
     setTargetTrack(user?.academic_track || 'IB'); setTargetClass(user?.role === 'mentor' ? (user?.class_year || '') : '');
     setTargetMentorId(''); setMentorsForClass([]);
     setIsPinned(false); setIsUrgent(false);
+    setPollEnabled(false);
     setShowModal(true);
   };
 
@@ -96,6 +104,7 @@ export default function AnnouncementsPage() {
     }
     setIsPinned(ann.is_pinned || false);
     setIsUrgent(ann.is_urgent || false);
+    setPollEnabled(ann.poll_enabled || false);
     setShowModal(true);
   };
 
@@ -137,6 +146,7 @@ export default function AnnouncementsPage() {
       : scope === 'mentor_group' ? user?.mentor_group_id || '' : '');
     payload.append('is_pinned', String(isPinned));
     payload.append('is_urgent', String(isUrgent));
+    payload.append('poll_enabled', String(pollEnabled));
     if (imageFile) payload.append('image', imageFile);
     try {
       if (editingAnn) {
@@ -173,6 +183,25 @@ export default function AnnouncementsPage() {
     } finally {
       setConfirmState({ open: false, id: null });
     }
+  };
+
+  const react = async (ann, reaction) => {
+    try {
+      const previous = ann.user_reactions || [];
+      const removing = previous.includes(reaction);
+      const next = removing ? previous.filter((item) => item !== reaction) : [...previous, reaction];
+      const counts = { ...(ann.reaction_counts || {}) };
+      counts[reaction] = Math.max(0, (counts[reaction] || 0) + (removing ? -1 : 1));
+      setAnnouncements((items) => items.map((item) => item.id === ann.id ? { ...item, user_reactions: next, reaction_counts: counts } : item));
+      await api.post(`/announcements/${ann.id}/reactions`, { reaction });
+    } catch { toast.error('Could not save reaction'); }
+  };
+
+  const vote = async (ann, answer) => {
+    try {
+      await api.post(`/announcements/${ann.id}/vote`, { answer });
+      fetchAnnouncements();
+    } catch (err) { toast.error(err.response?.data?.message || 'Could not save your vote'); }
   };
 
   const filtered = announcements.filter((a) =>
@@ -252,24 +281,24 @@ export default function AnnouncementsPage() {
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-[#e4f2fe] text-[#2383c9]">
+                  <span className="px-2.5 py-0.5 rounded-sm text-[10px]  font-bold uppercase tracking-wider bg-[#e4f2fe] text-[#2383c9] border border-[#2383c9]/30">
                     {ann.scope.replace('_', ' ')}
                   </span>
                   {ann.target_track && (
-                    <span className="px-2.5 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-purple-50 text-purple-600">
+                    <span className="px-2.5 py-0.5 rounded-sm text-[10px]  border border-purple-200 font-bold uppercase tracking-wider bg-purple-50 text-purple-600">
                       {ann.target_track} {ann.target_class ? `• ${ann.target_class}` : ''}
                     </span>
                   )}
                   {ann.is_pinned && (
-                    <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#fff7ed] text-[#f97316]">
+                    <span className="flex items-center gap-1 px-2.5 py-0.5 border border-[#f97316]/30 rounded-sm text-[10px] font-bold bg-[#fff7ed] text-[#f97316]">
                       <Pin className="w-2.5 h-2.5 fill-[#f97316]" />
-                      Pinned
+                      PINNED
                     </span>
                   )}
                   {ann.is_urgent && (
-                    <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600">
+                    <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-sm  text-[10px] font-bold bg-red-50 text-red-600 border border-red-200">
                       <AlertTriangle className="w-2.5 h-2.5" />
-                      Urgent
+                      URGENT
                     </span>
                   )}
                 </div>
@@ -311,6 +340,24 @@ export default function AnnouncementsPage() {
               <p className="text-xs md:text-sm text-[#64748b] mt-2 leading-relaxed whitespace-pre-line">
                 {ann.body}
               </p>
+
+              <div className="flex items-center gap-2 mt-4 flex-wrap">
+                {['👍', '❤️', '😂'].map((emoji) => {
+                  const count = ann.reaction_counts?.[emoji] || ({ '❤️': ann.heart_count, '👍': ann.like_count, '😂': ann.laugh_count }[emoji] || 0);
+                  const active = ann.user_reactions?.includes(emoji) || ({ '❤️': ann.user_hearted, '👍': ann.user_liked, '😂': ann.user_laughed }[emoji]);
+                  return <button key={emoji} onClick={() => react(ann, emoji)} title={emoji} className={`px-2 py-1 rounded-full border text-xs ${active ? 'bg-[#e4f2fe] border-[#2383c9] text-[#1a2b49]' : 'border-slate-200 text-[#64748b] hover:bg-slate-50'}`}>{emoji}{count ? ` ${count}` : ''}</button>;
+                })}
+                <div className="relative">
+                  <button type="button" onClick={() => setOpenReactionPicker(openReactionPicker === ann.id ? null : ann.id)} className="w-8 h-8 rounded-full border border-slate-200 text-[#64748b] hover:bg-slate-50 flex items-center justify-center" aria-label="More reactions"><SmilePlus className="w-4 h-4" /></button>
+                  {openReactionPicker === ann.id && <div className="absolute z-20 bottom-10 left-0 w-64 p-2 bg-white border border-slate-200 rounded-xl shadow-lg grid grid-cols-8 gap-1">{['😍','😎','😮','😢','😡','🎉','👏','🙏','🔥','💯','🥰','🤔','🙌','💪','✅','❌','⭐','💐','🤩','🤣','😴','🤗','👀','💙','💚','🧡','🤍','💜','😇','🤝','🍾','🥳'].map((emoji) => <button key={emoji} type="button" onClick={() => { react(ann, emoji); setOpenReactionPicker(null); }} className="w-7 h-7 rounded hover:bg-slate-100 text-lg" aria-label={`React ${emoji}`}>{emoji}</button>)}</div>}
+                </div>
+                {ann.poll_enabled && <div className="flex items-center gap-2 ml-2 text-xs">
+                  <span className="text-[#64748b]">Poll:</span>
+                  <button onClick={() => vote(ann, 'yes')} className={`px-2.5 py-1 rounded-full border ${ann.user_vote === 'yes' ? 'bg-green-50 border-green-400 text-green-700' : 'border-slate-200'}`}>Yes · {ann.yes_count || 0}</button>
+                  <button onClick={() => vote(ann, 'no')} className={`px-2.5 py-1 rounded-full border ${ann.user_vote === 'no' ? 'bg-red-50 border-red-400 text-red-700' : 'border-slate-200'}`}>No · {ann.no_count || 0}</button>
+                </div>}
+                <button type="button" onClick={() => setHiddenViews((prev) => ({ ...prev, [ann.id]: !prev[ann.id] }))} className="ml-auto inline-flex items-center gap-1 text-xs text-[#64748b]" title={hiddenViews[ann.id] ? 'Show views' : 'Hide views'} aria-label={hiddenViews[ann.id] ? 'Show view count' : 'Hide view count'}>{hiddenViews[ann.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />} {hiddenViews[ann.id] ? '•••' : ann.view_count || 0}</button>
+              </div>
 
               <div className="clear-both pt-3 mt-4 border-t border-slate-100 flex items-center justify-between gap-3 text-xs text-[#64748b]">
                 <div className="flex items-center gap-2">
@@ -502,6 +549,11 @@ export default function AnnouncementsPage() {
                   <span>Mark as Urgent</span>
                 </label>
               </div>
+
+              <label className="flex items-center gap-2 text-xs font-medium text-[#0f172a] cursor-pointer">
+                <input type="checkbox" checked={pollEnabled} onChange={(e) => setPollEnabled(e.target.checked)} className="rounded text-[#2383c9]" />
+                Add optional Yes / No poll
+              </label>
 
               <div className="flex items-center justify-end gap-2 pt-4 border-t border-slate-100">
                 <button

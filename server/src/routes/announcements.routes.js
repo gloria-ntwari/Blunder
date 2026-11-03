@@ -3,13 +3,15 @@ import { authenticate, authorize } from '../middlewares/auth.js';
 import { upload } from '../middlewares/upload.js';
 import {
   getAnnouncements, getAnnouncementById, createAnnouncement,
-  updateAnnouncement, deleteAnnouncement,
+  updateAnnouncement, deleteAnnouncement, reactToAnnouncement, voteOnAnnouncement,
 } from '../controllers/announcements.controller.js';
 
 const router = express.Router();
 
 router.get('/', authenticate, getAnnouncements);
 router.get('/:id', authenticate, getAnnouncementById);
+router.post('/:id/reactions', authenticate, reactToAnnouncement);
+router.post('/:id/vote', authenticate, voteOnAnnouncement);
 
 // All staff roles can post — scope restrictions enforced in controller/client
 router.post('/', authenticate, authorize(

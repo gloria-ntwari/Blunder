@@ -44,10 +44,15 @@ function AppInner() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#f8fafb]">
-        <div className="flex flex-col items-center gap-3 animate-fade-in">
-          <div className="w-10 h-10 border-3 border-[#2383c9] border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-[#6b7280] font-medium">Loading B- Lunder...</span>
+      <div className="flex items-center justify-center min-h-screen bg-[#f8fafb] overflow-hidden">
+        <div className="flex flex-col items-center gap-5 animate-fade-in">
+          <div className="relative w-28 h-28 flex items-center justify-center">
+            <span className="absolute inset-0 rounded-full border-[5px] border-[#1a2b49]/10 border-t-[#1a2b49] animate-spin" />
+            <span className="absolute inset-3 rounded-full border-[4px] border-[#2383c9]/15 border-b-[#1a2b49] animate-[spin_1.8s_linear_infinite_reverse]" />
+            <span className="absolute inset-7 rounded-full bg-[#e4f2fe] animate-pulse" />
+            <img src="/assets/louisenlund_logo.png" alt="" className="relative z-10 w-12 h-12 object-contain rounded-full" />
+          </div>
+          <span className="text-sm text-[#1a2b49] font-semibold tracking-wide">Loading B- Lunder...</span>
         </div>
       </div>
     );

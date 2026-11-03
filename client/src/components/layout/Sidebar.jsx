@@ -80,9 +80,8 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
             )}
           </NavLink>
 
-          {/* Food Menu — hidden for nobody (view is open to all, admin actions gated in page) */}
-          {role !== 'teacher' && (
-            <NavLink to="/food-menu" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
+          {/* Everyone can view the food menu; management controls are role-gated on the page. */}
+          <NavLink to="/food-menu" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
               {({ isActive }) => (
                 <>
                   {isActive && indicator}
@@ -90,8 +89,7 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
                   <span>{t('nav.foodMenu', 'Food menu')}</span>
                 </>
               )}
-            </NavLink>
-          )}
+          </NavLink>
 
           {/* Announcements — everyone */}
           <NavLink to="/announcements" onClick={onClose} className={({ isActive }) =>

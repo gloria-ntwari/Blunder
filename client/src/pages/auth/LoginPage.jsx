@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Globe, Eye, EyeOff } from 'lucide-react';
+import { Globe, Eye, EyeOff, Mail, LockKeyhole } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
@@ -103,7 +103,7 @@ export default function LoginPage() {
             <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a2e] tracking-tight">
               {t('auth.loginTitle', 'Welcome back!!!')}
             </h2>
-            <p className="mt-1.5 text-[16px] text-gray-500">
+            <p className="mt-1.5 text-[16px] text-[#8fa4c2]">
               {t('auth.loginSubtitle', "A new day, new possibilities. Let's get you signed in.")}
             </p>
           </div>
@@ -111,39 +111,43 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">
+              <label className="block text-[16px] font-medium text-[#667f9f] mb-1.5">
                 {t('auth.email', 'Email address')}
               </label>
+              <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#c5d3e5]" />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@louisenlund.de or you@gmail.com"
-                className="w-full bg-white text-[15px] text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e]  focus:outline-hidden transition-all placeholder:text-gray-400"
+                placeholder="you@louisenlund.de"
+                className="auth-input w-full bg-white text-[14px] text-gray-800 pl-12 pr-4 py-3 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:bg-white focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]"
               />
+              </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[16px] font-semibold text-gray-700">
+                <label className="text-[16px] font-medium text-[#667f9f]">
                   {t('auth.password', 'Password')}
                 </label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs text-[#1a1a2e] hover:underline font-medium"
+                  className="text-xs text-[#8fa4c2] hover:underline font-medium"
                 >
                   {t('auth.forgotPassword', 'Forgot password?')}
                 </Link>
               </div>
               <div className="relative">
+                <LockKeyhole className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#c5d3e5]" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t('auth.passwordPlaceholder', 'At least 8 characters')}
-                  className="w-full bg-white text-[15px] text-gray-800 px-4 py-3 rounded-lg border border-gray-200 focus:border-[#1a1a2e]  focus:ring-[#2383c9]/20 focus:outline-hidden transition-all pr-10 placeholder:text-gray-400"
+                  className="auth-input w-full bg-white text-[14px] text-gray-800 pl-12 pr-12 py-3 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:bg-white focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]"
                 />
                 <button
                   type="button"

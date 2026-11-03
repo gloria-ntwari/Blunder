@@ -163,3 +163,16 @@ body {
   transform: translateY(-2px);
   box-shadow: var(--shadow-card-hover);
 }
+/* Keep auth fields white on focus and when Chrome fills saved credentials. */
+.auth-input,
+.auth-input:focus {
+  background-color: #fff;
+}
+
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus,
+.auth-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #fff inset, 0 2px 5px rgba(26, 43, 73, 0.1) !important;
+  box-shadow: 0 0 0 1000px #fff inset, 0 2px 5px rgba(26, 43, 73, 0.1) !important;
+}

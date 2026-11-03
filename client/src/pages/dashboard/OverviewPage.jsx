@@ -248,7 +248,7 @@ export default function OverviewPage() {
               >
                 <div className="flex items-start justify-between">
                   <p className="text-[14px] font-medium leading-[20px] text-[#64748b]">{card.label}</p>
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${card.iconClass}`}>
+                  <div className={`w-9 h-9 rounded-md flex items-center justify-center shrink-0 ${card.iconClass}`}>
                     <Icon className="w-4 h-4" />
                   </div>
                 </div>
@@ -269,7 +269,7 @@ export default function OverviewPage() {
 
         <div className="relative z-10 space-y-2 max-w-2xl text-white">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-[#e4f2fe]" />
+            
             <span className="text-[10px] md:text-xs font-semibold tracking-widest uppercase text-white/80">
               WHERE CAMPUS LIFE CLICKS.
             </span>
@@ -334,7 +334,7 @@ export default function OverviewPage() {
               announcements.map((ann) => (
                 <div key={ann.id} className="py-3.5 first:pt-1 last:pb-1 space-y-1.5 group">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-[#e4f2fe] text-[#2383c9] capitalize">
+                    <span className="px-2 py-0.5 text-[10px] font-semibold rounded-sm border border-[#2383c9]/30 bg-[#e4f2fe] text-[#2383c9] capitalize">
                       {ann.scope.replace('_', ' ')}
                     </span>
                     <span className="text-[11px] text-slate-400">

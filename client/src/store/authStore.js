@@ -7,7 +7,10 @@ export const useAuthStore = create((set, get) => ({
   isAuthenticated: false,
 
   initialize: async () => {
-    const token = localStorage.getItem('blunder_access_token');
+    // Migrate away from persistent tokens so a prior browser session cannot silently log in.
+    localStorage.removeItem('blunder_access_token');
+    localStorage.removeItem('blunder_refresh_token');
+    const token = sessionStorage.getItem('blunder_access_token');
     if (!token) {
       set({ isLoading: false, isAuthenticated: false });
       return;
@@ -22,17 +25,17 @@ export const useAuthStore = create((set, get) => ({
 
   login: async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password });
-    localStorage.setItem('blunder_access_token', data.accessToken);
-    localStorage.setItem('blunder_refresh_token', data.refreshToken);
+    sessionStorage.setItem('blunder_access_token', data.accessToken);
+    sessionStorage.setItem('blunder_refresh_token', data.refreshToken);
     set({ user: data.user, isAuthenticated: true });
     return data.user;
   },
 
   logout: async () => {
-    const refreshToken = localStorage.getItem('blunder_refresh_token');
+    const refreshToken = sessionStorage.getItem('blunder_refresh_token');
     try { await api.post('/auth/logout', { refreshToken }); } catch {}
-    localStorage.removeItem('blunder_access_token');
-    localStorage.removeItem('blunder_refresh_token');
+    sessionStorage.removeItem('blunder_access_token');
+    sessionStorage.removeItem('blunder_refresh_token');
     set({ user: null, isAuthenticated: false });
   },
 

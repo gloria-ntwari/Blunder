@@ -201,14 +201,14 @@ export default function LostFoundPage() {
             onClick={() => openCreateModal('found')}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
           >
-            <PackageOpen className="w-3.5 h-3.5" />
+            
             <span>Report Found Item</span>
           </button>
           <button
             onClick={() => openCreateModal('lost')}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-[#f97316] hover:bg-[#ea580c] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
           >
-            <PackageSearch className="w-3.5 h-3.5" />
+            
             <span>I Lost Something</span>
           </button>
         </div>
