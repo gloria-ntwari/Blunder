@@ -8,6 +8,7 @@
     "dev": "nodemon index.js",
     "start": "node index.js",
     "migrate": "node src/migrations/migrate.js",
+    "migrate:guilds": "node src/migrations/migrate.js --guilds-only",
     "seed": "node src/seeds/superAdmin.js"
   },
   "keywords": [],

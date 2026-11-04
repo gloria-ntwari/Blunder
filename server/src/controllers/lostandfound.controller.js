@@ -124,16 +124,39 @@ export const updateLostFound = async (req, res, next) => {
 // ── POST /api/lost-found/:id/claim ────────────────────────────────────────────
 export const claimItem = async (req, res, next) => {
   try {
-    const check = await query('SELECT * FROM lost_found WHERE id = $1', [req.params.id]);
-    if (!check.rows.length) return res.status(404).json({ message: 'Item not found' });
-    if (check.rows[0].is_claimed) return res.status(409).json({ message: 'Already claimed' });
-
-    await query(
-      `UPDATE lost_found SET is_claimed = TRUE, claimed_by = $1, claimed_at = NOW() WHERE id = $2`,
+    const result = await query(
+      `UPDATE lost_found SET is_claimed = TRUE, claimed_by = $1, claimed_at = NOW()
+       WHERE id = $2 AND is_claimed = FALSE RETURNING id`,
       [req.user.id, req.params.id]
     );
+    if (!result.rows.length) {
+      const exists = await query('SELECT is_claimed FROM lost_found WHERE id = $1', [req.params.id]);
+      if (!exists.rows.length) return res.status(404).json({ message: 'Item not found' });
+      return res.status(409).json({ message: 'Already claimed' });
+    }
 
+    emitDataChanged(req.app.get('io'), 'lost_found', { id: req.params.id, is_claimed: true });
     res.json({ message: 'Item claimed successfully' });
+  } catch (err) { next(err); }
+};
+
+// ── DELETE /api/lost-found/:id/claim ──────────────────────────────────────────
+export const unclaimItem = async (req, res, next) => {
+  try {
+    const result = await query(
+      `UPDATE lost_found SET is_claimed = FALSE, claimed_by = NULL, claimed_at = NULL, updated_at = NOW()
+       WHERE id = $1 AND is_claimed = TRUE AND claimed_by = $2 RETURNING id`,
+      [req.params.id, req.user.id]
+    );
+    if (!result.rows.length) {
+      const item = await query('SELECT is_claimed, claimed_by FROM lost_found WHERE id = $1', [req.params.id]);
+      if (!item.rows.length) return res.status(404).json({ message: 'Item not found' });
+      if (!item.rows[0].is_claimed) return res.status(409).json({ message: 'This item is not currently claimed' });
+      return res.status(403).json({ message: 'Only the person who claimed this item can unclaim it' });
+    }
+
+    emitDataChanged(req.app.get('io'), 'lost_found', { id: req.params.id, is_claimed: false });
+    res.json({ message: 'Claim removed successfully' });
   } catch (err) { next(err); }
 };
 

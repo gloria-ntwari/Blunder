@@ -342,7 +342,7 @@ export default function AnnouncementsPage() {
               </p>
 
               <div className="flex items-center gap-2 mt-4 flex-wrap">
-                {['👍', '❤️', '😂'].map((emoji) => {
+                {[...new Set(['👍', '❤️', '😂', ...Object.keys(ann.reaction_counts || {}), ...(ann.user_reactions || [])])].map((emoji) => {
                   const count = ann.reaction_counts?.[emoji] || ({ '❤️': ann.heart_count, '👍': ann.like_count, '😂': ann.laugh_count }[emoji] || 0);
                   const active = ann.user_reactions?.includes(emoji) || ({ '❤️': ann.user_hearted, '👍': ann.user_liked, '😂': ann.user_laughed }[emoji]);
                   return <button key={emoji} onClick={() => react(ann, emoji)} title={emoji} className={`px-2 py-1 rounded-full border text-xs ${active ? 'bg-[#e4f2fe] border-[#2383c9] text-[#1a2b49]' : 'border-slate-200 text-[#64748b] hover:bg-slate-50'}`}>{emoji}{count ? ` ${count}` : ''}</button>;

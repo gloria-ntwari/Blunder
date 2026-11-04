@@ -10,6 +10,7 @@ import {
   Clock,
   Users,
   UsersRound,
+  Shield,
   Settings,
   LogOut,
   X,
@@ -145,6 +146,18 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
               </>
             )}
           </NavLink>
+
+          {['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'super_admin'].includes(role) && (
+            <NavLink to="/guilds" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
+              {({ isActive }) => (
+                <>
+                  {isActive && indicator}
+                  <Shield className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                  <span>Guilds</span>
+                </>
+              )}
+            </NavLink>
+          )}
 
           {/* User Management — super_admin only */}
           {showUserMgmt && (

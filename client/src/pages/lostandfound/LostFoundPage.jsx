@@ -6,6 +6,7 @@ import {
   MapPin,
   Calendar,
   CheckCircle2,
+  RotateCcw,
   MessageSquare,
   Send,
   X,
@@ -129,6 +130,19 @@ export default function LostFoundPage() {
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not claim item.');
+    }
+  };
+
+  const handleUnclaim = async (itemId) => {
+    try {
+      await api.delete(`/lost-found/${itemId}/claim`);
+      toast.success('Your claim has been removed.');
+      fetchItems();
+      if (selectedItem?.id === itemId) {
+        setSelectedItem((prev) => ({ ...prev, is_claimed: false, claimed_by: null, claimed_by_name: null, claimed_at: null }));
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not remove your claim.');
     }
   };
 
@@ -406,13 +420,22 @@ export default function LostFoundPage() {
             {/* Action button — different wording per type */}
             <div className="pt-1">
               {selectedItem.is_claimed ? (
-                <div className="p-3 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-semibold flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>
-                    {isFoundPost(selectedItem)
-                      ? `Item claimed by ${selectedItem.claimed_by_name || 'a student'}.`
-                      : `This has been resolved by ${selectedItem.claimed_by_name || 'a student'}.`}
-                  </span>
+                <div className="space-y-2">
+                  <div className="p-3 bg-emerald-50 text-emerald-800 rounded-lg text-xs font-semibold flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>
+                      {isFoundPost(selectedItem)
+                        ? `Item claimed by ${selectedItem.claimed_by_name || 'a student'}.`
+                        : `This has been resolved by ${selectedItem.claimed_by_name || 'a student'}.`}
+                    </span>
+                  </div>
+                  {selectedItem.claimed_by === user?.id && (
+                    <button onClick={() => handleUnclaim(selectedItem.id)}
+                      className="w-full py-2.5 bg-white border border-slate-200 hover:border-[#2383c9] hover:text-[#2383c9] text-[#64748b] font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-2">
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Unclaim item</span>
+                    </button>
+                  )}
                 </div>
               ) : isFoundPost(selectedItem) ? (
                 <button onClick={() => handleClaim(selectedItem.id)}

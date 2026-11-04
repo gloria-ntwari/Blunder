@@ -8,10 +8,13 @@ const migrationFiles = readdirSync(__dirname)
   .filter((file) => file.endsWith('.sql'))
   .sort();
 
+const guildsOnly = process.argv.includes('--guilds-only');
+
 async function migrate() {
   try {
     console.log('Running migrations...');
-    for (const file of migrationFiles) {
+    const filesToRun = guildsOnly ? migrationFiles.filter((file) => file === '010_guilds.sql') : migrationFiles;
+    for (const file of filesToRun) {
       console.log(`Running ${file}...`);
       try {
         await query(readFileSync(join(__dirname, file), 'utf-8'));
