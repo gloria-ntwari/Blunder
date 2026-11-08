@@ -5,6 +5,16 @@ import Topbar from './Topbar.jsx';
 
 export default function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem('blunder_sidebar_collapsed') === 'true'
+  );
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((current) => {
+      localStorage.setItem('blunder_sidebar_collapsed', String(!current));
+      return !current;
+    });
+  };
 
   return (
     <div className="flex flex-col h-dvh overflow-hidden bg-[#f8fafb] p-1.5 gap-1.5">
@@ -12,7 +22,7 @@ export default function MainLayout() {
       <Topbar onMenuClick={() => setSidebarOpen(true)} />
       {/* Sidebar + content sit side by side below the topbar */}
       <div className="flex flex-1 overflow-hidden gap-1.5 min-h-0">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
         <main className="flex-1 min-w-0 overflow-y-auto px-3 py-4 sm:p-4">
           <Outlet />
         </main>

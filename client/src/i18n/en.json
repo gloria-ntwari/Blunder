@@ -184,7 +184,7 @@
     "daysLeft": "{{days}} days left",
     "overdue": "Overdue",
     "dueToday": "Due today",
-    "noDeadlines": "No deadlines. You're all good! 🎉"
+    "noDeadlines": "No deadlines. You're all good! "
   },
   "notifications": {
     "title": "Notifications",

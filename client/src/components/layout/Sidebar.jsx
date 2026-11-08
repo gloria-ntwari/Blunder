@@ -14,11 +14,13 @@ import {
   Settings,
   LogOut,
   X,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 
-export default function Sidebar({ isOpen = false, onClose = () => {} }) {
+export default function Sidebar({ isOpen = false, onClose = () => {}, collapsed = false, onToggleCollapse = () => {} }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -42,12 +44,12 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
   };
 
   const navLinkClass = (isActive) =>
-    `relative flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
+    `relative flex items-center gap-3 ${collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : 'px-3.5'} py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
       isActive ? 'bg-[#1a2b49] text-white shadow-xs' : 'text-[rgb(52,58,64)] hover:bg-slate-50'
     }`;
 
   const indicator = (
-    <span className="absolute -left-3 top-1/2 -translate-y-1/2 h-5 w-1 bg-[#1a2b49] rounded-r-sm" />
+    <span className={`absolute ${collapsed ? 'left-0' : '-left-3'} top-1/2 -translate-y-1/2 h-5 w-1 bg-[#1a2b49] rounded-r-sm`} />
   );
 
   return (
@@ -60,7 +62,7 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
           className="fixed inset-0 bg-slate-950/30 z-30 lg:hidden cursor-default"
         />
       )}
-      <aside className={`fixed inset-y-0 left-0 w-[min(18rem,calc(100vw-2rem))] bg-white flex flex-col justify-between select-none z-40 font-['Outfit'] rounded-r-lg overflow-hidden border border-slate-200/60 shadow-xl transition-transform duration-200 lg:relative lg:inset-auto lg:z-20 lg:w-64 lg:h-full lg:rounded-lg lg:shadow-none lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 w-[min(18rem,calc(100vw-2rem))] bg-white flex flex-col justify-between select-none z-40 font-['Outfit'] rounded-r-lg overflow-hidden border border-slate-200/60 shadow-xl transition-all duration-200 lg:relative lg:inset-auto lg:z-20 lg:overflow-visible ${collapsed ? 'lg:w-[4.5rem]' : 'lg:w-64'} lg:h-full lg:rounded-lg lg:shadow-none lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 lg:hidden">
           <span className="text-sm font-semibold text-[#0f172a]">Navigation</span>
           <button type="button" onClick={onClose} aria-label="Close navigation" className="p-2 rounded-lg text-slate-500 hover:bg-slate-100">
@@ -68,45 +70,57 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
           </button>
         </div>
       <div>
-        <div className="px-3 py-4 space-y-1">
+        <div className={`px-3 py-4 space-y-1 ${collapsed ? 'lg:px-2' : ''}`}>
 
           {/* Overview — everyone */}
-          <NavLink to="/dashboard" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
-            {({ isActive }) => (
-              <>
-                {isActive && indicator}
-                <LayoutDashboard className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                <span>{t('nav.overview', 'Dashboard')}</span>
-              </>
-            )}
-          </NavLink>
+          <div className="relative">
+            <NavLink to="/dashboard" onClick={onClose} title={t('nav.overview', 'Dashboard')} className={({ isActive }) => navLinkClass(isActive)}>
+              {({ isActive }) => (
+                <>
+                  {isActive && indicator}
+                  <LayoutDashboard className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                  <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.overview', 'Dashboard')}</span>
+                </>
+              )}
+            </NavLink>
+            {/* <button
+              type="button"
+              onClick={onToggleCollapse}
+              aria-label={collapsed ? 'Expand sidebar' : 'Minimize sidebar'}
+              aria-expanded={!collapsed}
+              title={collapsed ? 'Expand sidebar' : 'Minimize sidebar'}
+              className="absolute -right-6 top-1/2 z-50 hidden h-7 w-7 -translate-y-1/2 items-center justify-center border-0 bg-transparent p-0 text-[#1a2b49] shadow-none transition-colors hover:text-[#2383c9] lg:flex"
+            >
+              {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </button> */}
+          </div>
 
           {/* Everyone can view the food menu; management controls are role-gated on the page. */}
-          <NavLink to="/food-menu" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
+          <NavLink to="/food-menu" onClick={onClose} title={t('nav.foodMenu', 'Food menu')} className={({ isActive }) => navLinkClass(isActive)}>
               {({ isActive }) => (
                 <>
                   {isActive && indicator}
                   <UtensilsCrossed className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                  <span>{t('nav.foodMenu', 'Food menu')}</span>
+                  <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.foodMenu', 'Food menu')}</span>
                 </>
               )}
           </NavLink>
 
           {/* Announcements — everyone */}
-          <NavLink to="/announcements" onClick={onClose} className={({ isActive }) =>
-            `relative flex items-center justify-between px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
+          <NavLink to="/announcements" onClick={onClose} title={t('nav.announcements', 'Announcements')} className={({ isActive }) =>
+            `relative flex items-center gap-3 ${collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : 'justify-between px-3.5'} py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-all ${
               isActive ? 'bg-[#1a2b49] text-white shadow-xs' : 'text-[rgb(52,58,64)] hover:bg-slate-50'
             }`
           }>
             {({ isActive }) => (
               <>
                 {isActive && indicator}
-                <div className="flex items-center gap-3">
+                <div className={`flex items-center gap-3 ${collapsed ? 'lg:justify-center lg:gap-0' : ''}`}>
                   <Bell className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                  <span>{t('nav.announcements', 'Announcements')}</span>
+                  <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.announcements', 'Announcements')}</span>
                 </div>
                 {unreadAnnouncementCount > 0 && (
-                  <span className="flex items-center justify-center font-bold bg-[#f97316] text-white rounded-full h-4 w-4 text-[11px] animate-pulse">
+                    <span className={`flex items-center justify-center font-bold bg-[#f97316] text-white rounded-full h-4 w-4 text-[11px] animate-pulse ${collapsed ? 'lg:absolute lg:-right-1 lg:-top-1' : ''}`}>
                     {unreadAnnouncementCount}
                   </span>
                 )}
@@ -115,45 +129,45 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
           </NavLink>
 
           {/* Lost & Found — everyone */}
-          <NavLink to="/lost-found" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
+          <NavLink to="/lost-found" onClick={onClose} title={t('nav.lostFound', 'Lost & found')} className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
                 {isActive && indicator}
                 <Search className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                <span>{t('nav.lostFound', 'Lost & found')}</span>
+                <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.lostFound', 'Lost & found')}</span>
               </>
             )}
           </NavLink>
 
           {/* Calendar — everyone */}
-          <NavLink to="/calendar" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
+          <NavLink to="/calendar" onClick={onClose} title={t('nav.calendar', 'Calendar')} className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
                 {isActive && indicator}
                 <Calendar className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                <span>{t('nav.calendar', 'Calendar')}</span>
+                <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.calendar', 'Calendar')}</span>
               </>
             )}
           </NavLink>
 
           {/* Deadlines — everyone */}
-          <NavLink to="/deadlines" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
+          <NavLink to="/deadlines" onClick={onClose} title={t('nav.deadlines', 'Deadlines')} className={({ isActive }) => navLinkClass(isActive)}>
             {({ isActive }) => (
               <>
                 {isActive && indicator}
                 <Clock className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                <span>{t('nav.deadlines', 'Deadlines')}</span>
+                <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.deadlines', 'Deadlines')}</span>
               </>
             )}
           </NavLink>
 
           {['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'super_admin'].includes(role) && (
-            <NavLink to="/guilds" onClick={onClose} className={({ isActive }) => navLinkClass(isActive)}>
+            <NavLink to="/guilds" onClick={onClose} title="Guilds" className={({ isActive }) => navLinkClass(isActive)}>
               {({ isActive }) => (
                 <>
                   {isActive && indicator}
                   <Shield className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                  <span>Guilds</span>
+                  <span className={collapsed ? 'lg:hidden' : ''}>Guilds</span>
                 </>
               )}
             </NavLink>
@@ -162,21 +176,21 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
           {/* User Management — super_admin only */}
           {showUserMgmt && (
             <div className="pt-0.5 gap-y-1 flex flex-col">
-              <NavLink to="/admin/users" onClick={onClose} className={() => navLinkClass(userManagementActive)}>
+              <NavLink to="/admin/users" onClick={onClose} title="User Management" className={() => navLinkClass(userManagementActive)}>
                 {() => (
                   <>
                     {userManagementActive && indicator}
                     <Users className={`w-4 h-4 shrink-0 ${userManagementActive ? 'text-white' : 'text-slate-500'}`} />
-                    <span>User Management</span>
+                    <span className={collapsed ? 'lg:hidden' : ''}>User Management</span>
                   </>
                 )}
               </NavLink>
-              <NavLink to="/admin/users?section=mentor-groups" onClick={onClose} className={() => navLinkClass(mentorGroupsActive)}>
+              <NavLink to="/admin/users?section=mentor-groups" onClick={onClose} title="Mentor Groups" className={() => navLinkClass(mentorGroupsActive)}>
                 {() => (
                   <>
                     {mentorGroupsActive && indicator}
                     <UsersRound className={`w-4 h-4 shrink-0 ${mentorGroupsActive ? 'text-white' : 'text-slate-500'}`} />
-                    <span>Mentor Groups</span>
+                    <span className={collapsed ? 'lg:hidden' : ''}>Mentor Groups</span>
                   </>
                 )}
               </NavLink>
@@ -188,20 +202,20 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-slate-100 space-y-1">
-        <NavLink to="/profile" onClick={onClose} className={({ isActive }) =>
-          `flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-colors ${
+      <div className={`p-3 border-t border-slate-100 space-y-1 ${collapsed ? 'lg:px-2' : ''}`}>
+        <NavLink to="/profile" onClick={onClose} title="Settings" className={({ isActive }) =>
+          `flex items-center gap-3 ${collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : 'px-3.5'} py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-colors ${
             isActive ? 'bg-slate-100 text-[#0f172a]' : 'text-[rgb(52,58,64)] hover:bg-slate-50'
           }`
         }>
           <Settings className="w-4 h-4 text-slate-500 shrink-0" />
-          <span>Settings</span>
+          <span className={collapsed ? 'lg:hidden' : ''}>Settings</span>
         </NavLink>
 
-        <button onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[16px] font-medium leading-[24px] text-[rgb(52,58,64)] hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer text-left">
+        <button onClick={handleLogout} title="Sign Out"
+          className={`w-full flex items-center gap-3 ${collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : 'px-3.5'} py-2.5 rounded-lg text-[16px] font-medium leading-[24px] text-[rgb(52,58,64)] hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer text-left`}>
           <LogOut className="w-4 h-4 text-slate-500 shrink-0" />
-          <span>Sign Out</span>
+          <span className={collapsed ? 'lg:hidden' : ''}>Sign Out</span>
         </button>
       </div>
       </aside>

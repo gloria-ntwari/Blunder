@@ -107,7 +107,18 @@ export default function App() {
   return (
     <BrowserRouter>
       <SocketProvider>
-        <Toaster position="top-right" />
+        <Toaster
+          position="top-right"
+          containerStyle={{ zIndex: 10000 }}
+          toastOptions={{
+            style: {
+              background: '#ffffff',
+              color: '#0f172a',
+              opacity: 1,
+              boxShadow: '0 10px 25px rgba(15, 23, 42, 0.18)',
+            },
+          }}
+        />
         <AppInner />
       </SocketProvider>
     </BrowserRouter>
