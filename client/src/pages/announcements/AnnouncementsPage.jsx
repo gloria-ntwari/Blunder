@@ -22,12 +22,13 @@ import { format } from 'date-fns';
 import Modal from '../../components/layout/Modal.jsx';
 import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 import { getClassesForTrack } from '../../utils/academicTracks';
-import { BrowserRouter } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 export default function AnnouncementsPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
   const socket = useSocket();
+  const location = useLocation();
 
   const [announcements, setAnnouncements] = useState([]);
   const [hiddenViews, setHiddenViews] = useState({});
@@ -40,6 +41,7 @@ export default function AnnouncementsPage() {
   const [editingAnn, setEditingAnn] = useState(null); // null = create, object = edit
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [scope, setScope] = useState('school_wide');
@@ -80,6 +82,7 @@ export default function AnnouncementsPage() {
     // Default scope based on role
     const defaultScope = canPostSchoolWide ? 'school_wide' : canPostTrack ? 'academic_track' : 'mentor_group';
     setTitle(''); setBody(''); setScope(defaultScope);
+    setExpiresAt('');
     setImageFile(null); setImagePreview('');
     setTargetTrack(user?.academic_track || 'IB'); setTargetClass(user?.role === 'mentor' ? (user?.class_year || '') : '');
     setTargetMentorId(''); setMentorsForClass([]);
@@ -92,6 +95,7 @@ export default function AnnouncementsPage() {
     setEditingAnn(ann);
     setTitle(ann.title || '');
     setBody(ann.body || '');
+    setExpiresAt(ann.expires_at ? new Date(ann.expires_at).toISOString().slice(0, 16) : '');
     setImageFile(null); setImagePreview(ann.image_url || '');
     setScope(ann.scope || 'school_wide');
     setTargetTrack(ann.target_track || user?.academic_track || 'IB');
@@ -109,6 +113,12 @@ export default function AnnouncementsPage() {
   };
 
   useEffect(() => { fetchAnnouncements(); }, []);
+
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get('announcement');
+    if (!id || !announcements.some((announcement) => announcement.id === id)) return;
+    requestAnimationFrame(() => document.getElementById(`announcement-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }, [announcements, location.search]);
 
   useEffect(() => {
     if (!socket) return;
@@ -147,6 +157,7 @@ export default function AnnouncementsPage() {
     payload.append('is_pinned', String(isPinned));
     payload.append('is_urgent', String(isUrgent));
     payload.append('poll_enabled', String(pollEnabled));
+    payload.append('expires_at', expiresAt);
     if (imageFile) payload.append('image', imageFile);
     try {
       if (editingAnn) {
@@ -159,6 +170,7 @@ export default function AnnouncementsPage() {
       setShowModal(false);
       setEditingAnn(null);
       setTitle(''); setBody(''); setIsPinned(false); setIsUrgent(false);
+      setExpiresAt('');
       setImageFile(null); setImagePreview('');
       setTargetClass(''); setTargetMentorId(''); setMentorsForClass([]);
       fetchAnnouncements();
@@ -271,6 +283,7 @@ export default function AnnouncementsPage() {
           {filtered.map((ann) => (
             <div
               key={ann.id}
+              id={`announcement-${ann.id}`}
               className={`p-4 md:p-5 rounded-lg bg-white border transition-all ${
                 ann.is_urgent
                   ? 'border-red-200 bg-red-50/20'
@@ -327,6 +340,8 @@ export default function AnnouncementsPage() {
                   )}
                 </div>
               </div>
+
+              {ann.expires_at && <p className="mt-2 text-xs text-[#64748b]">Expires {format(new Date(ann.expires_at), 'd MMM yyyy, HH:mm')}</p>}
 
               {ann.image_url && (
                 <img
@@ -408,6 +423,11 @@ export default function AnnouncementsPage() {
                   placeholder="e.g. Autumn Donation Drive Starts Monday"
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">Expiration date (optional)</label>
+                <input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} min={new Date().toISOString().slice(0, 16)} className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors" />
               </div>
 
               <div>

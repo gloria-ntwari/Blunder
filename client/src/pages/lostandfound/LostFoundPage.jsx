@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Search,
@@ -26,6 +27,7 @@ import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 export default function LostFoundPage() {
   const { t } = useTranslation();
   const { user } = useAuthStore();
+  const [searchParams] = useSearchParams();
 
   const [items, setItems] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');   // all | unclaimed | claimed
@@ -55,6 +57,12 @@ export default function LostFoundPage() {
   const canManage = user && ['super_admin', 'sv_committee'].includes(user.role);
 
   useEffect(() => { fetchItems(); }, [filterStatus, filterType]);
+
+  useEffect(() => {
+    const targetId = searchParams.get('item');
+    const target = items.find((item) => item.id === targetId);
+    if (target && selectedItem?.id !== target.id) openDetailModal(target);
+  }, [items, searchParams, selectedItem?.id]);
 
   const fetchItems = async () => {
     setLoading(true);

@@ -27,7 +27,7 @@ export const listGuilds = async (req, res, next) => {
       `SELECT g.id, g.name, g.created_by, g.created_at, g.updated_at,
               creator.full_name AS creator_name,
               (SELECT COUNT(*)::int FROM guild_members members_count WHERE members_count.guild_id = g.id) AS member_count,
-              (SELECT COUNT(*)::int FROM guild_announcements announcements_count WHERE announcements_count.guild_id = g.id) AS announcement_count,
+              (SELECT COUNT(*)::int FROM guild_announcements announcements_count WHERE announcements_count.guild_id = g.id AND (announcements_count.expires_at IS NULL OR announcements_count.expires_at > NOW())) AS announcement_count,
               CASE WHEN g.created_by = $1 THEN
                 COALESCE(jsonb_agg(DISTINCT jsonb_build_object('id', member.id, 'email', member.email, 'full_name', member.full_name))
                   FILTER (WHERE member.id IS NOT NULL), '[]'::jsonb)
@@ -123,7 +123,8 @@ export const listGuildAnnouncements = async (req, res, next) => {
                WHERE announcement_id = ga.id AND user_id = $2) AS user_reactions
        FROM guild_announcements ga JOIN users u ON u.id = ga.created_by
        JOIN guilds g ON g.id = ga.guild_id
-       WHERE ga.guild_id = $1 ORDER BY ga.is_pinned DESC, ga.created_at DESC`, [req.params.id, req.user.id]
+       WHERE ga.guild_id = $1 AND (ga.expires_at IS NULL OR ga.expires_at > NOW())
+       ORDER BY ga.is_pinned DESC, ga.created_at DESC`, [req.params.id, req.user.id]
     );
     if (result.rows.length) {
       const viewed = await query(
@@ -149,9 +150,9 @@ export const createGuildAnnouncement = async (req, res, next) => {
       return res.status(404).json({ message: 'Guild not found or you cannot post announcements' });
     const imageUrl = req.file ? await uploadImage(req.file.buffer, 'blunder/guild-announcements') : null;
     const result = await query(
-      `INSERT INTO guild_announcements (guild_id, created_by, title, body, image_url, is_pinned)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [req.params.id, req.user.id, title, body, imageUrl, req.body.is_pinned === 'true' || req.body.is_pinned === true]
+      `INSERT INTO guild_announcements (guild_id, created_by, title, body, image_url, is_pinned, expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [req.params.id, req.user.id, title, body, imageUrl, req.body.is_pinned === 'true' || req.body.is_pinned === true, req.body.expires_at || null]
     );
     const announcement = result.rows[0];
     const notificationResult = await query(

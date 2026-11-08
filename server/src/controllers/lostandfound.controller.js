@@ -144,7 +144,7 @@ export const claimItem = async (req, res, next) => {
 export const unclaimItem = async (req, res, next) => {
   try {
     const result = await query(
-      `UPDATE lost_found SET is_claimed = FALSE, claimed_by = NULL, claimed_at = NULL, updated_at = NOW()
+      `UPDATE lost_found SET is_claimed = FALSE, claimed_by = NULL, claimed_at = NULL
        WHERE id = $1 AND is_claimed = TRUE AND claimed_by = $2 RETURNING id`,
       [req.params.id, req.user.id]
     );

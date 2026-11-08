@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   Search,
@@ -19,6 +19,7 @@ import { enablePushNotifications } from '../../services/pushNotifications.js';
 export default function Topbar({ onMenuClick = () => {} }) {
   const { t, i18n } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const { notifications, unreadCount, markRead, markAllRead } = useNotificationStore();
 
@@ -56,6 +57,24 @@ export default function Topbar({ onMenuClick = () => {} }) {
         toast.error(err.message);
       }
     }
+  };
+
+  const openNotification = async (notification) => {
+    if (!notification.is_read) {
+      try { await markRead(notification.id); } catch {}
+    }
+    setShowNotifications(false);
+    const id = encodeURIComponent(notification.entity_id || '');
+    const destinations = {
+      lost_found: `/lost-found?item=${id}`,
+      announcement: `/announcements?announcement=${id}`,
+      guild_announcement: `/guilds?guild=${encodeURIComponent(notification.target_guild_id || '')}&announcement=${id}`,
+      event: `/calendar?event=${id}`,
+      food: '/food-menu',
+      deadline: `/deadlines?deadline=${id}`,
+      mentor_group: '/dashboard',
+    };
+    navigate(destinations[notification.entity_type] || '/dashboard');
   };
 
   return (
@@ -177,7 +196,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
                   notifications.map((n) => (
                     <div
                       key={n.id}
-                      onClick={() => !n.is_read && markRead(n.id)}
+                      onClick={() => openNotification(n)}
                       className={`p-3.5 hover:bg-slate-50 transition-colors cursor-pointer text-xs ${
                         !n.is_read ? 'bg-[#e4f2fe]/20 font-medium' : 'text-slate-600'
                       }`}

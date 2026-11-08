@@ -6,8 +6,11 @@ export const getNotifications = async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     const result = await query(
-      `SELECT * FROM notifications WHERE user_id = $1
-       ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+      `SELECT n.*, ga.guild_id AS target_guild_id
+       FROM notifications n
+       LEFT JOIN guild_announcements ga ON n.entity_type = 'guild_announcement' AND ga.id = n.entity_id
+       WHERE n.user_id = $1
+       ORDER BY n.created_at DESC LIMIT $2 OFFSET $3`,
       [req.user.id, limit, offset]
     );
 

@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS guild_announcements (
   image_url TEXT,
   is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
   poll_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -31,6 +32,8 @@ CREATE TABLE IF NOT EXISTS guild_announcements (
 ALTER TABLE guild_announcements ADD COLUMN IF NOT EXISTS image_url TEXT;
 ALTER TABLE guild_announcements ADD COLUMN IF NOT EXISTS is_pinned BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE guild_announcements ADD COLUMN IF NOT EXISTS poll_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE guild_announcements ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE announcements ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS guild_announcement_reactions (
   announcement_id UUID NOT NULL REFERENCES guild_announcements(id) ON DELETE CASCADE,

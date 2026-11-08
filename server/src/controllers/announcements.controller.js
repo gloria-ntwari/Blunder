@@ -38,9 +38,9 @@ export const getAnnouncements = async (req, res, next) => {
     // Admins / super_admin see everything
     const where =
       ['super_admin', 'admin'].includes(u.role)
-        ? ''
-        : `WHERE (${scopeConditions.join(' OR ')})`;
-    const queryParams = where ? scopeParams : [];
+        ? 'WHERE (a.expires_at IS NULL OR a.expires_at > NOW())'
+        : `WHERE (${scopeConditions.join(' OR ')}) AND (a.expires_at IS NULL OR a.expires_at > NOW())`;
+    const queryParams = ['super_admin', 'admin'].includes(u.role) ? [] : scopeParams;
     const userParamIndex = queryParams.length + 1;
 
     const result = await query(
@@ -134,7 +134,7 @@ export const getAnnouncementById = async (req, res, next) => {
 // ── POST /api/announcements ───────────────────────────────────────────────────
 export const createAnnouncement = async (req, res, next) => {
   try {
-    const { title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, poll_enabled } = req.body;
+    const { title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, poll_enabled, expires_at } = req.body;
     const u = req.user;
     if (!canPost(u)) return res.status(403).json({ message: 'You do not have permission to post announcements' });
     const image_url = req.file ? await uploadImage(req.file.buffer, 'blunder/announcements') : null;
@@ -171,11 +171,11 @@ export const createAnnouncement = async (req, res, next) => {
 
     const result = await query(
       `INSERT INTO announcements
-         (title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, image_url, created_by, poll_enabled)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+         (title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, image_url, created_by, poll_enabled, expires_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [title, body, scope || 'school_wide', target_track || null, target_class || null,
        target_mentor_group_id || null, is_pinned === 'true' || is_pinned === true,
-       is_urgent === 'true' || is_urgent === true, image_url, u.id, poll_enabled === 'true' || poll_enabled === true]
+       is_urgent === 'true' || is_urgent === true, image_url, u.id, poll_enabled === 'true' || poll_enabled === true, expires_at || null]
     );
 
     const io = req.app.get('io');
@@ -190,18 +190,19 @@ export const createAnnouncement = async (req, res, next) => {
 export const updateAnnouncement = async (req, res, next) => {
   try {
     if (!canPost(req.user)) return res.status(403).json({ message: 'You do not have permission to edit announcements' });
-    const { title, body, is_pinned, is_urgent, poll_enabled } = req.body;
+    const { title, body, is_pinned, is_urgent, poll_enabled, expires_at } = req.body;
     const image_url = req.file ? await uploadImage(req.file.buffer, 'blunder/announcements') : undefined;
     const result = await query(
       `UPDATE announcements SET
          title = COALESCE($1, title), body = COALESCE($2, body),
          is_pinned = COALESCE($3, is_pinned), is_urgent = COALESCE($4, is_urgent),
-         image_url = COALESCE($5, image_url), poll_enabled = COALESCE($6, poll_enabled), updated_at = NOW()
-       WHERE id = $7 AND created_by = $8 RETURNING *`,
+         image_url = COALESCE($5, image_url), poll_enabled = COALESCE($6, poll_enabled),
+         expires_at = CASE WHEN $7 THEN $8::timestamptz ELSE expires_at END, updated_at = NOW()
+       WHERE id = $9 AND created_by = $10 RETURNING *`,
       [title, body, is_pinned === undefined ? null : is_pinned === 'true' || is_pinned === true,
        is_urgent === undefined ? null : is_urgent === 'true' || is_urgent === true,
        image_url, poll_enabled === undefined ? null : poll_enabled === 'true' || poll_enabled === true,
-       req.params.id, req.user.id]
+       expires_at !== undefined, expires_at || null, req.params.id, req.user.id]
     );
     if (!result.rows.length)
       return res.status(404).json({ message: 'Not found or not your announcement' });

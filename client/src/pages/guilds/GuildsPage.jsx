@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
 import { Bell, Plus, Users, Pencil, Megaphone, X, Crown, Mail, UserRound, ChevronDown, Eye, EyeOff, SmilePlus, ImagePlus, Pin } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -9,6 +10,7 @@ import Modal from '../../components/layout/Modal.jsx';
 const canCreateGuild = ['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'super_admin'];
 
 export default function GuildsPage() {
+  const location = useLocation();
   const { user } = useAuthStore();
   const [guilds, setGuilds] = useState([]);
   const [guildView, setGuildView] = useState('mine');
@@ -25,6 +27,7 @@ export default function GuildsPage() {
   const [emails, setEmails] = useState('');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [isPinned, setIsPinned] = useState(false);
@@ -34,11 +37,13 @@ export default function GuildsPage() {
     try {
       const { data } = await api.get('/guilds', { params: { view: guildView } });
       setGuilds(data);
-      setSelectedGuild((current) => data.find((guild) => guild.id === current?.id) || data[0] || null);
+      const requestedGuildId = new URLSearchParams(location.search).get('guild');
+      setSelectedGuild((current) => data.find((guild) => guild.id === requestedGuildId)
+        || data.find((guild) => guild.id === current?.id) || data[0] || null);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Could not load Guilds');
     } finally { setLoading(false); }
-  }, [guildView]);
+  }, [guildView, location.search]);
 
   useEffect(() => { loadGuilds(); }, [loadGuilds]);
   useEffect(() => {
@@ -51,6 +56,12 @@ export default function GuildsPage() {
       .catch((error) => toast.error(error.response?.data?.message || 'Could not load Guild announcements'));
     return () => { active = false; };
   }, [selectedGuild?.id, selectedGuild?.created_by, guildView, user?.id, user?.role]);
+
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get('announcement');
+    if (!id || !announcements.some((announcement) => announcement.id === id)) return;
+    requestAnimationFrame(() => document.getElementById(`guild-announcement-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }, [announcements, location.search]);
 
   const openGuildModal = (guild = null) => {
     setEditingGuild(guild);
@@ -83,12 +94,13 @@ export default function GuildsPage() {
       const payload = new FormData();
       payload.append('title', title);
       payload.append('body', body);
+      payload.append('expires_at', expiresAt);
       payload.append('is_pinned', String(isPinned));
       if (imageFile) payload.append('image', imageFile);
       await api.post(`/guilds/${selectedGuild.id}/announcements`, payload);
       const { data } = await api.get(`/guilds/${selectedGuild.id}/announcements`);
       setAnnouncements(data);
-      setAnnouncementModal(false); setTitle(''); setBody(''); setImageFile(null); setImagePreview(''); setIsPinned(false);
+      setAnnouncementModal(false); setTitle(''); setBody(''); setExpiresAt(''); setImageFile(null); setImagePreview(''); setIsPinned(false);
       await loadGuilds();
       toast.success('Announcement posted');
     } catch (error) { toast.error(error.response?.data?.message || 'Could not post announcement'); }
@@ -165,7 +177,7 @@ export default function GuildsPage() {
                 <div className="flex flex-wrap gap-2">
                   {isCreator && <button onClick={() => setMembersOpen((open) => !open)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[#1a2b49] hover:bg-slate-50"><Users className="h-4 w-4" /> Members <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{selectedGuild.member_count}</span><ChevronDown className={`h-4 w-4 transition-transform ${membersOpen ? 'rotate-180' : ''}`} /></button>}
                   {(isCreator || isSuperAdmin) && <button onClick={() => openGuildModal(selectedGuild)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-[#1a2b49] hover:bg-slate-50"><Pencil className="h-4 w-4" /> Edit Guild</button>}
-                  {isCreator && <button onClick={() => { setTitle(''); setBody(''); setImageFile(null); setImagePreview(''); setIsPinned(false); setAnnouncementModal(true); }} className="inline-flex items-center gap-2 rounded-lg bg-[#1a2b49] px-3 py-2 text-sm font-semibold text-white hover:bg-[#14223b]"><Plus className="h-4 w-4" /> New announcement</button>}
+                  {isCreator && <button onClick={() => { setTitle(''); setBody(''); setExpiresAt(''); setImageFile(null); setImagePreview(''); setIsPinned(false); setAnnouncementModal(true); }} className="inline-flex items-center gap-2 rounded-lg bg-[#1a2b49] px-3 py-2 text-sm font-semibold text-white hover:bg-[#14223b]"><Plus className="h-4 w-4" /> New announcement</button>}
                 </div>
               </div>
               {membersOpen && <div className="p-5">
@@ -175,10 +187,11 @@ export default function GuildsPage() {
 
             <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs">
               <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h2 className="text-base font-bold text-[#0f172a]">Announcements</h2><p className="mt-0.5 text-sm text-[#64748b]">Updates shared with {selectedGuild.name} members.</p></div><span className="text-xs font-semibold text-[#64748b]">{announcements.length} total</span></div>
-              {announcements.length ? <div className="divide-y divide-slate-100">{announcements.map((announcement) => <article key={announcement.id} className="px-5 py-5">
+              {announcements.length ? <div className="divide-y divide-slate-100">{announcements.map((announcement) => <article key={announcement.id} id={`guild-announcement-${announcement.id}`} className="px-5 py-5">
                 <div className="mb-2 flex flex-wrap items-center gap-2"><span className="rounded-sm bg-[#e4f2fe] px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-[#2383c9]">{announcement.guild_name}</span>{announcement.is_pinned && <span className="inline-flex items-center gap-1 rounded-sm bg-orange-50 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-orange-700"><Pin className="h-3 w-3" />Pinned</span>}<span className="text-xs text-[#64748b]">{format(new Date(announcement.created_at), 'MMM d, yyyy · h:mm a')}</span></div>
                 {announcement.image_url && <img src={announcement.image_url} alt="" className="mb-3 max-h-80 w-full rounded-lg border border-slate-100 object-cover" />}
                 <h3 className="text-base font-bold text-[#0f172a]">{announcement.title}</h3><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-[#64748b]">{announcement.body}</p>
+                {announcement.expires_at && <p className="mt-2 text-xs text-[#64748b]">Expires {format(new Date(announcement.expires_at), 'MMM d, yyyy · h:mm a')}</p>}
                 <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                   {[...new Set(['👍', '❤️', '😂', ...Object.keys(announcement.reaction_counts || {}), ...(announcement.user_reactions || [])])].map((emoji) => {
                     const count = announcement.reaction_counts?.[emoji] || 0;
@@ -210,6 +223,7 @@ export default function GuildsPage() {
         <div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-blue-700">{selectedGuild?.name}</p><h2 className="mt-1 text-xl font-bold text-[#1a2b49]">New announcement</h2></div><button type="button" onClick={() => setAnnouncementModal(false)} aria-label="Close" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
         <label className="mb-4 flex cursor-pointer items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs font-medium text-[#0f172a]"><input type="checkbox" checked={isPinned} onChange={(event) => setIsPinned(event.target.checked)} className="rounded text-[#2383c9]" /><Pin className="h-3.5 w-3.5 text-[#f97316]" /><span>Pin to top</span></label>
         <label className="mb-4 block text-sm font-medium text-slate-700">Title<input autoFocus required maxLength={160} value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Announcement title" /></label>
+        <label className="mb-4 block text-sm font-medium text-slate-700">Expiration date (optional)<input type="datetime-local" min={new Date().toISOString().slice(0, 16)} value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></label>
         <label className="block text-sm font-medium text-slate-700">Message<textarea required rows={6} value={body} onChange={(event) => setBody(event.target.value)} className="mt-1.5 w-full resize-y rounded-lg border border-slate-300 px-3 py-2.5 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Write your announcement…" /></label>
         <label className="mt-4 flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-medium text-[#1a2b49] hover:bg-slate-50"><ImagePlus className="h-4 w-4 text-[#2383c9]" /><span>{imageFile?.name || 'Add a photo'}</span><input type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setImageFile(file); setImagePreview(URL.createObjectURL(file)); } }} /></label>
         {imagePreview && <div className="relative mt-3"><img src={imagePreview} alt="Announcement preview" className="max-h-48 w-full rounded-lg border border-slate-100 object-cover" /><button type="button" onClick={() => { setImageFile(null); setImagePreview(''); }} className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-slate-600 shadow hover:text-red-600" aria-label="Remove photo"><X className="h-4 w-4" /></button></div>}
