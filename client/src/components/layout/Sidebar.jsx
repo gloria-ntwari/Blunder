@@ -16,6 +16,7 @@ import {
   X,
   PanelLeftClose,
   PanelLeftOpen,
+  Music2,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -168,6 +169,18 @@ export default function Sidebar({ isOpen = false, onClose = () => {}, collapsed 
                   {isActive && indicator}
                   <Shield className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                   <span className={collapsed ? 'lg:hidden' : ''}>Guilds</span>
+                </>
+              )}
+            </NavLink>
+          )}
+
+          {role !== 'teacher' && (
+            <NavLink to="/schulhaus" onClick={onClose} title="Schulhaus" className={({ isActive }) => navLinkClass(isActive)}>
+              {({ isActive }) => (
+                <>
+                  {isActive && indicator}
+                  <Music2 className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                  <span className={collapsed ? 'lg:hidden' : ''}>Schulhaus</span>
                 </>
               )}
             </NavLink>

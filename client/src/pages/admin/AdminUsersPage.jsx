@@ -39,7 +39,7 @@ export default function AdminUsersPage() {
   const PAGE_SIZE = 8;
   const visibleRoles = user?.role === 'student_leader'
     ? ['', 'student']
-    : ['', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student'];
+    : ['', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student', ...(user?.role === 'super_admin' ? ['dj_team'] : [])];
 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [invitedSuccessInfo, setInvitedSuccessInfo] = useState(null);
@@ -434,8 +434,10 @@ export default function AdminUsersPage() {
           {loadingMentorGroups ? (
             <div className="text-center py-6 text-xs text-[#64748b]">Loading mentor groups...</div>
           ) : mentorGroupsList.length === 0 ? (
-            <div className="text-center py-6 text-xs text-[#64748b]">
-              No mentor groups created yet. Click "Add Group" to create one.
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+              <UsersRound className="mx-auto mb-3 h-9 w-9 text-slate-300" />
+              <p className="text-lg font-semibold text-slate-800">No mentor groups created yet</p>
+              <p className="mt-1 text-sm text-slate-500">Click “Add Group” to create one.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -503,7 +505,7 @@ export default function AdminUsersPage() {
                   : 'bg-[#f8fafb] text-[#64748b] hover:bg-slate-100'
               }`}
             >
-              {r ? r.replace('_', ' ') : 'All Roles'}
+              {r === 'dj_team' ? 'DJ-TEAM' : r ? r.replace('_', ' ') : 'All Roles'}
             </button>
           ))}
         </div>
@@ -538,7 +540,7 @@ export default function AdminUsersPage() {
               {loading ? (
                 <tr><td colSpan={6} className="text-center py-8 text-[#64748b]">Loading users...</td></tr>
               ) : users.length === 0 ? (
-                <tr><td colSpan={6} className="text-center py-8 text-[#64748b]">No users match this criteria.</td></tr>
+                <tr><td colSpan={6} className="py-10"><div className="text-center"><Users className="mx-auto mb-3 h-9 w-9 text-slate-300" /><p className="text-lg font-semibold text-slate-800">No users found</p><p className="mt-1 text-sm text-slate-500">Try another search or role filter.</p></div></td></tr>
               ) : (
                 users.map((u) => (
                   <tr key={u.id} className="hover:bg-[#f8fafb] transition-colors">
@@ -567,9 +569,10 @@ export default function AdminUsersPage() {
                           : u.role === 'student_leader' ? 'bg-indigo-50 text-indigo-600'
                           : u.role === 'committee' ? 'bg-cyan-50 text-cyan-700'
                           : u.role === 'mentor' ? 'bg-purple-50 text-purple-600'
+                          : u.role === 'dj_team' ? 'bg-amber-50 text-amber-700'
                           : 'bg-[#e4f2fe] text-[#2383c9]'
                         }`}>
-                          {u.role.replace('_', ' ')}
+                          {u.role === 'dj_team' ? 'DJ-TEAM' : u.role.replace('_', ' ')}
                         </span>
                         {u.admin_type && u.role === 'admin' && (
                           <span className="text-[10px] text-[#64748b] capitalize">
@@ -963,6 +966,7 @@ export default function AdminUsersPage() {
                   <option value="committee">Committee</option>
                   <option value="mentor">Mentor</option>
                   <option value="student">Student</option>
+                  {user?.role === 'super_admin' && <option value="dj_team">DJ-TEAM</option>}
                 </select>
               </div>
 

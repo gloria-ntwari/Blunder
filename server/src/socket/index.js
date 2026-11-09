@@ -61,6 +61,20 @@ export const emitAnnouncement = (io, announcement) => {
   }
 };
 
+export const emitAnnouncementReaction = (io, announcement, update) => {
+  if (announcement.scope === 'school_wide') {
+    io.to('all').emit('announcement_reaction_changed', update);
+  } else if (announcement.scope === 'academic_track' && announcement.target_track) {
+    io.to(`track:${announcement.target_track}`).emit('announcement_reaction_changed', update);
+  } else if (announcement.scope === 'mentor_group' && announcement.target_mentor_group_id) {
+    io.to(`mentor_group:${announcement.target_mentor_group_id}`).emit('announcement_reaction_changed', update);
+  }
+};
+
+export const emitSchulhausChanged = (io) => {
+  io.to('all').emit('schulhaus_changed');
+};
+
 /**
  * Emit a private notification to a specific user
  */

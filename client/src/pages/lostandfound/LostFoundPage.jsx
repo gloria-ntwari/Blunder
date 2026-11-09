@@ -273,10 +273,10 @@ export default function LostFoundPage() {
       {loading ? (
         <div className="p-12 text-center text-xs text-[#64748b]">Loading items...</div>
       ) : items.length === 0 ? (
-        <div className="bg-white p-12 text-center rounded-lg border border-dashed border-slate-200">
-          <Search className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-[#0f172a]">No items found</p>
-          <p className="text-xs text-[#64748b] mt-1">Use the buttons above to report a found item or post something you lost.</p>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <Search className="mx-auto mb-3 h-9 w-9 text-slate-300" />
+          <p className="text-lg font-semibold text-slate-800">No items found</p>
+          <p className="mt-1 text-sm text-slate-500">Use the buttons above to report a found item or post something you lost.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

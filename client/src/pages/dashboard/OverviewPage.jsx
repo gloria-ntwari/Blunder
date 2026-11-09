@@ -341,7 +341,7 @@ export default function OverviewPage() {
                       {ann.created_at ? format(new Date(ann.created_at), 'd MMM yyyy') : ''}
                     </span>
                   </div>
-                  <h4 className="text-sm font-semibold text-[#0f172a] group-hover:text-[#2383c9] transition-colors">
+                  <h4 className="text-sm font-semibold text-[#0f172a] transition-colors">
                     {ann.title}
                   </h4>
                   <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">

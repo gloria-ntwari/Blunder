@@ -249,10 +249,10 @@ export default function FoodMenuPage() {
       {loading ? (
         <div className="p-12 text-center text-xs text-[#64748b]">Loading meals...</div>
       ) : filteredItems.length === 0 ? (
-        <div className="bg-white p-12 text-center rounded-lg border border-dashed border-slate-200">
-          <UtensilsCrossed className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-[#0f172a]">No menu items found for this day</p>
-          <p className="text-xs text-[#64748b] mt-1">Kitchen staff updates the timetable regularly.</p>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <UtensilsCrossed className="mx-auto mb-3 h-9 w-9 text-slate-300" />
+          <p className="text-lg font-semibold text-slate-800">No menu items found for this day</p>
+          <p className="mt-1 text-sm text-slate-500">Kitchen staff updates the timetable regularly.</p>
           {canEditMenu && (
             <button
               onClick={() => handleOpenAddModal()}

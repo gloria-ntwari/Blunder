@@ -28,6 +28,7 @@ import DeadlinesPage from './pages/deadlines/DeadlinesPage.jsx';
 import AdminUsersPage from './pages/admin/AdminUsersPage.jsx';
 import ProfilePage from './pages/profile/ProfilePage.jsx';
 import GuildsPage from './pages/guilds/GuildsPage.jsx';
+import SchulhausPage from './pages/schulhaus/SchulhausPage.jsx';
 
 function AppInner() {
   const { initialize, isLoading, isAuthenticated, user } = useAuthStore();
@@ -78,6 +79,7 @@ function AppInner() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/deadlines" element={<DeadlinesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/schulhaus" element={user?.role !== 'teacher' ? <SchulhausPage /> : <Navigate to="/dashboard" replace />} />
           <Route
             path="/guilds"
             element={['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'super_admin'].includes(user?.role)

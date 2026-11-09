@@ -125,8 +125,16 @@ export default function AnnouncementsPage() {
     const handleDataChanged = (event) => {
       if (event.detail?.entity === 'announcement') fetchAnnouncements();
     };
+    const handleReactionChanged = ({ announcement_id, reaction_counts }) => {
+      setAnnouncements((current) => current.map((item) => item.id === announcement_id
+        ? { ...item, reaction_counts } : item));
+    };
     window.addEventListener('blunder:data-changed', handleDataChanged);
-    return () => window.removeEventListener('blunder:data-changed', handleDataChanged);
+    socket.on('announcement_reaction_changed', handleReactionChanged);
+    return () => {
+      window.removeEventListener('blunder:data-changed', handleDataChanged);
+      socket.off('announcement_reaction_changed', handleReactionChanged);
+    };
   }, [socket]);
 
   const fetchAnnouncements = async () => {
@@ -205,8 +213,13 @@ export default function AnnouncementsPage() {
       const counts = { ...(ann.reaction_counts || {}) };
       counts[reaction] = Math.max(0, (counts[reaction] || 0) + (removing ? -1 : 1));
       setAnnouncements((items) => items.map((item) => item.id === ann.id ? { ...item, user_reactions: next, reaction_counts: counts } : item));
-      await api.post(`/announcements/${ann.id}/reactions`, { reaction });
-    } catch { toast.error('Could not save reaction'); }
+      const { data } = await api.post(`/announcements/${ann.id}/reactions`, { reaction });
+      setAnnouncements((items) => items.map((item) => item.id === ann.id
+        ? { ...item, reaction_counts: data.reaction_counts } : item));
+    } catch {
+      toast.error('Could not save reaction');
+      fetchAnnouncements();
+    }
   };
 
   const vote = async (ann, answer) => {
@@ -273,10 +286,10 @@ export default function AnnouncementsPage() {
       {loading ? (
         <div className="p-12 text-center text-xs text-[#64748b]">Loading announcements...</div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white p-12 text-center rounded-lg border border-dashed border-slate-200">
-          <Bell className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-[#0f172a]">No announcements in this category</p>
-          <p className="text-xs text-[#64748b] mt-1">Check back later or view all announcements.</p>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <Bell className="mx-auto mb-3 h-9 w-9 text-slate-300" />
+          <p className="text-lg font-semibold text-slate-800">No announcements in this category</p>
+          <p className="mt-1 text-sm text-slate-500">Check back later or view all announcements.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -358,7 +371,7 @@ export default function AnnouncementsPage() {
 
               <div className="flex items-center gap-2 mt-4 flex-wrap">
                 {[...new Set(['👍', '❤️', '😂', ...Object.keys(ann.reaction_counts || {}), ...(ann.user_reactions || [])])].map((emoji) => {
-                  const count = ann.reaction_counts?.[emoji] || ({ '❤️': ann.heart_count, '👍': ann.like_count, '😂': ann.laugh_count }[emoji] || 0);
+                  const count = ann.reaction_counts?.[emoji] ?? ({ '❤️': ann.heart_count, '👍': ann.like_count, '😂': ann.laugh_count }[emoji] || 0);
                   const active = ann.user_reactions?.includes(emoji) || ({ '❤️': ann.user_hearted, '👍': ann.user_liked, '😂': ann.user_laughed }[emoji]);
                   return <button key={emoji} onClick={() => react(ann, emoji)} title={emoji} className={`px-2 py-1 rounded-full border text-xs ${active ? 'bg-[#e4f2fe] border-[#2383c9] text-[#1a2b49]' : 'border-slate-200 text-[#64748b] hover:bg-slate-50'}`}>{emoji}{count ? ` ${count}` : ''}</button>;
                 })}

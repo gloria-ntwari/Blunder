@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { format } from 'date-fns';
-import { Bell, Plus, Users, Pencil, Megaphone, X, Crown, Mail, UserRound, ChevronDown, Eye, EyeOff, SmilePlus, ImagePlus, Pin } from 'lucide-react';
+import { Bell, Plus, Users, Pencil, Megaphone, X, Crown, Mail, UserRound, ChevronDown, Eye, EyeOff, SmilePlus, ImagePlus, Pin, Trash2, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import api from '../../services/api.js';
 import { useAuthStore } from '../../store/authStore.js';
+import { useSocket } from '../../context/SocketContext.jsx';
 import Modal from '../../components/layout/Modal.jsx';
+import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
 
 const canCreateGuild = ['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'super_admin'];
 
 export default function GuildsPage() {
   const location = useLocation();
+  const socket = useSocket();
   const { user } = useAuthStore();
   const [guilds, setGuilds] = useState([]);
   const [guildView, setGuildView] = useState('mine');
@@ -19,6 +22,7 @@ export default function GuildsPage() {
   const [loading, setLoading] = useState(true);
   const [guildModal, setGuildModal] = useState(false);
   const [announcementModal, setAnnouncementModal] = useState(false);
+  const [deleteGuildModal, setDeleteGuildModal] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [hiddenViews, setHiddenViews] = useState({});
   const [openReactionPicker, setOpenReactionPicker] = useState(null);
@@ -58,6 +62,17 @@ export default function GuildsPage() {
   }, [selectedGuild?.id, selectedGuild?.created_by, guildView, user?.id, user?.role]);
 
   useEffect(() => {
+    if (!socket || !selectedGuild?.id) return;
+    const handleReactionChanged = ({ guild_id, announcement_id, reaction_counts }) => {
+      if (guild_id !== selectedGuild.id) return;
+      setAnnouncements((current) => current.map((item) => item.id === announcement_id
+        ? { ...item, reaction_counts } : item));
+    };
+    socket.on('guild_announcement_reaction_changed', handleReactionChanged);
+    return () => socket.off('guild_announcement_reaction_changed', handleReactionChanged);
+  }, [socket, selectedGuild?.id]);
+
+  useEffect(() => {
     const id = new URLSearchParams(location.search).get('announcement');
     if (!id || !announcements.some((announcement) => announcement.id === id)) return;
     requestAnimationFrame(() => document.getElementById(`guild-announcement-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
@@ -84,6 +99,21 @@ export default function GuildsPage() {
       toast.success(editingGuild ? 'Guild updated' : 'Guild created');
     } catch (error) { toast.error(error.response?.data?.message || 'Could not save Guild'); }
     finally { setSaving(false); }
+  };
+
+  const deleteGuild = async () => {
+    if (!selectedGuild) return;
+    setSaving(true);
+    try {
+      await api.delete(`/guilds/${selectedGuild.id}`);
+      setDeleteGuildModal(false);
+      setMembersOpen(false);
+      setAnnouncements([]);
+      await loadGuilds();
+      toast.success('Guild deleted');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not delete Guild');
+    } finally { setSaving(false); }
   };
 
   const createAnnouncement = async (event) => {
@@ -116,7 +146,9 @@ export default function GuildsPage() {
     setAnnouncements((current) => current.map((item) => item.id === announcement.id
       ? { ...item, user_reactions: userReactions, reaction_counts: reactionCounts } : item));
     try {
-      await api.post(`/guilds/${selectedGuild.id}/announcements/${announcement.id}/reactions`, { reaction });
+      const { data } = await api.post(`/guilds/${selectedGuild.id}/announcements/${announcement.id}/reactions`, { reaction });
+      setAnnouncements((current) => current.map((item) => item.id === announcement.id
+        ? { ...item, reaction_counts: data.reaction_counts } : item));
     } catch (error) {
       toast.error(error.response?.data?.message || 'Could not save reaction');
       const { data } = await api.get(`/guilds/${selectedGuild.id}/announcements`);
@@ -132,7 +164,7 @@ export default function GuildsPage() {
       <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
           <h1 className="text-[30px] font-semibold leading-[37.5px] text-[#0f172a] ">Guilds</h1>
-          <p className="mt-1 text-slate-600">Your shared spaces and their latest announcements.</p>
+          <p className="mt-1 text-[#64748b]">Your shared spaces and their latest announcements.</p>
         </div>
         {canCreateGuild.includes(user?.role) && <button onClick={() => openGuildModal()} className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1a2b49] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#243d66]"><Plus className="w-4 h-4" /> Create Guild</button>}
       </header>
@@ -155,7 +187,7 @@ export default function GuildsPage() {
               <div><h2 className="text-base font-bold text-[#0f172a]">{isSuperAdmin && guildView === 'all' ? 'Guild Directory' : 'Your Guilds'}</h2><p className="mt-0.5 text-sm text-[#64748b]">{isSuperAdmin && guildView === 'all' ? 'Guild names and their creators.' : 'Select a Guild to view its announcements.'}</p></div>
               <span className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">{guilds.length} Guild{guilds.length === 1 ? '' : 's'}</span>
             </div>
-            <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
               {guilds.map((guild) => {
                 const active = guild.id === selectedGuild?.id;
                 return <button key={guild.id} onClick={() => { setSelectedGuild(guild); setMembersOpen(false); }} className={`rounded-lg border p-4 text-left transition ${active ? 'border-[#1a2b49] bg-[#f8fafb] ring-1 ring-[#1a2b49]/10' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'}`}>
@@ -177,6 +209,7 @@ export default function GuildsPage() {
                 <div className="flex flex-wrap gap-2">
                   {isCreator && <button onClick={() => setMembersOpen((open) => !open)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-[#1a2b49] hover:bg-slate-50"><Users className="h-4 w-4" /> Members <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">{selectedGuild.member_count}</span><ChevronDown className={`h-4 w-4 transition-transform ${membersOpen ? 'rotate-180' : ''}`} /></button>}
                   {(isCreator || isSuperAdmin) && <button onClick={() => openGuildModal(selectedGuild)} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-[#1a2b49] hover:bg-slate-50"><Pencil className="h-4 w-4" /> Edit Guild</button>}
+                  {isCreator && <button onClick={() => setDeleteGuildModal(true)} className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /> Delete Guild</button>}
                   {isCreator && <button onClick={() => { setTitle(''); setBody(''); setExpiresAt(''); setImageFile(null); setImagePreview(''); setIsPinned(false); setAnnouncementModal(true); }} className="inline-flex items-center gap-2 rounded-lg bg-[#1a2b49] px-3 py-2 text-sm font-semibold text-white hover:bg-[#14223b]"><Plus className="h-4 w-4" /> New announcement</button>}
                 </div>
               </div>
@@ -194,7 +227,7 @@ export default function GuildsPage() {
                 {announcement.expires_at && <p className="mt-2 text-xs text-[#64748b]">Expires {format(new Date(announcement.expires_at), 'MMM d, yyyy · h:mm a')}</p>}
                 <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
                   {[...new Set(['👍', '❤️', '😂', ...Object.keys(announcement.reaction_counts || {}), ...(announcement.user_reactions || [])])].map((emoji) => {
-                    const count = announcement.reaction_counts?.[emoji] || 0;
+                    const count = announcement.reaction_counts?.[emoji] ?? 0;
                     const active = announcement.user_reactions?.includes(emoji);
                     return <button key={emoji} type="button" onClick={() => react(announcement, emoji)} title={emoji} className={`rounded-full border px-2 py-1 text-xs ${active ? 'border-[#2383c9] bg-[#e4f2fe] text-[#1a2b49]' : 'border-slate-200 text-[#64748b] hover:bg-slate-50'}`}>{emoji}{count ? ` ${count}` : ''}</button>;
                   })}
@@ -205,7 +238,7 @@ export default function GuildsPage() {
                   <button type="button" onClick={() => setHiddenViews((current) => ({ ...current, [announcement.id]: !current[announcement.id] }))} className="ml-auto inline-flex items-center gap-1 text-xs text-[#64748b]" title={hiddenViews[announcement.id] ? 'Show views' : 'Hide views'} aria-label={hiddenViews[announcement.id] ? 'Show view count' : 'Hide view count'}>{hiddenViews[announcement.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />} {hiddenViews[announcement.id] ? '•••' : announcement.view_count || 0}</button>
                 </div>
                 <div className="mt-3 flex items-center gap-2 text-xs text-[#64748b]"><div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-[#e4f2fe] text-[10px] font-bold text-[#2383c9]">{announcement.author_avatar ? <img src={announcement.author_avatar} alt="" className="h-full w-full object-cover" /> : announcement.author_name?.charAt(0) || 'A'}</div><span className="font-medium text-[#0f172a]">{announcement.author_name}</span></div>
-              </article>)}</div> : <div className="p-8 text-center"><Megaphone className="mx-auto mb-2 h-7 w-7 text-slate-300" /><p className="text-sm font-semibold text-[#0f172a]">No announcements yet</p><p className="mt-1 text-xs text-[#64748b]">Announcements from this Guild will appear here.</p></div>}
+              </article>)}</div> : <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center"><Megaphone className="mx-auto mb-3 h-9 w-9 text-slate-300" /><p className="text-lg font-semibold text-slate-800">No announcements yet</p><p className="mt-1 text-sm text-slate-500">Announcements from this Guild will appear here.</p></div>}
             </section>
           </>}
         </div>
@@ -229,6 +262,14 @@ export default function GuildsPage() {
         {imagePreview && <div className="relative mt-3"><img src={imagePreview} alt="Announcement preview" className="max-h-48 w-full rounded-lg border border-slate-100 object-cover" /><button type="button" onClick={() => { setImageFile(null); setImagePreview(''); }} className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-slate-600 shadow hover:text-red-600" aria-label="Remove photo"><X className="h-4 w-4" /></button></div>}
         <div className="mt-6 flex justify-end gap-2"><button type="button" onClick={() => setAnnouncementModal(false)} className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</button><button disabled={saving} className="rounded-lg bg-[#1a2b49] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Posting…' : 'Post announcement'}</button></div>
       </form></Modal>}
+      <ConfirmModal
+        open={deleteGuildModal}
+        onCancel={() => setDeleteGuildModal(false)}
+        onConfirm={deleteGuild}
+        title="Delete this Guild?"
+        message={`“${selectedGuild?.name || 'This Guild'}” and its announcements will be permanently deleted for all members.`}
+        confirmLabel={saving ? 'Deleting…' : 'Delete Guild'}
+      />
     </div>
   );
 }

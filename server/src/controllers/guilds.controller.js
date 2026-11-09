@@ -108,6 +108,22 @@ export const updateGuild = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+export const deleteGuild = async (req, res, next) => {
+  if (!canUseGuilds(req, res)) return;
+  try {
+    const deleted = await query(
+      'DELETE FROM guilds WHERE id = $1 AND created_by = $2 RETURNING id',
+      [req.params.id, req.user.id]
+    );
+    if (!deleted.rows.length) {
+      const existing = await query('SELECT id FROM guilds WHERE id = $1', [req.params.id]);
+      if (!existing.rows.length) return res.status(404).json({ message: 'Guild not found' });
+      return res.status(403).json({ message: 'Only the Guild creator can delete it' });
+    }
+    res.json({ message: 'Guild deleted' });
+  } catch (err) { next(err); }
+};
+
 export const listGuildAnnouncements = async (req, res, next) => {
   if (!canUseGuilds(req, res)) return;
   try {
@@ -194,6 +210,19 @@ export const reactToGuildAnnouncement = async (req, res, next) => {
         [req.params.announcementId, req.user.id, reaction]
       );
     }
-    res.json({ active: !existing.rows.length });
+    const countsResult = await query(
+      `SELECT reaction, COUNT(*)::int AS count FROM guild_announcement_reactions
+       WHERE announcement_id = $1 GROUP BY reaction`, [req.params.announcementId]
+    );
+    const reaction_counts = { '👍': 0, '❤️': 0, '😂': 0 };
+    countsResult.rows.forEach(({ reaction: key, count }) => { reaction_counts[key] = count; });
+    const members = await query('SELECT user_id FROM guild_members WHERE guild_id = $1', [req.params.id]);
+    const io = req.app.get('io');
+    members.rows.forEach(({ user_id }) => io.to(`user:${user_id}`).emit('guild_announcement_reaction_changed', {
+      guild_id: req.params.id,
+      announcement_id: req.params.announcementId,
+      reaction_counts,
+    }));
+    res.json({ active: !existing.rows.length, reaction_counts });
   } catch (err) { next(err); }
 };

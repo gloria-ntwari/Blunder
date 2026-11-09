@@ -309,9 +309,10 @@ export default function CalendarPage() {
 
             <div className="mt-4 space-y-3">
               {eventsOnSelectedDay.length === 0 ? (
-                <div className="py-12 text-center text-xs text-[#64748b]">
-                  <Clock className="w-8 h-8 mx-auto text-slate-300 stroke-[1.5] mb-2" />
-                  <p>No events scheduled for this day.</p>
+                <div className="py-10 text-center">
+                  <Clock className="mx-auto mb-3 h-9 w-9 text-slate-300 stroke-[1.5]" />
+                  <p className="text-lg font-semibold text-slate-800">No events scheduled</p>
+                  <p className="mt-1 text-sm text-slate-500">There are no events for this day.</p>
                 </div>
               ) : (
                 eventsOnSelectedDay.map((ev) => (

@@ -151,6 +151,10 @@ export const updateUser = async (req, res, next) => {
   try {
     const { full_name, role, admin_type, academic_track, class_year, mentor_group_id, is_active, can_post_school_wide } = req.body;
 
+    if (role === 'dj_team' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ message: 'Only a Super Admin can assign the DJ-TEAM role' });
+    }
+
     if (req.user.role === 'student_leader') {
       const target = await query('SELECT role, academic_track FROM users WHERE id = $1', [req.params.id]);
       if (!target.rows.length || target.rows[0].role !== 'student' || target.rows[0].academic_track !== req.user.academic_track) {

@@ -180,10 +180,10 @@ export default function DeadlinesPage() {
       {loading ? (
         <div className="p-12 text-center text-xs text-[#64748b]">Loading deadlines...</div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white p-12 text-center rounded-lg border border-dashed border-slate-200">
-          <Clock className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm font-semibold text-[#0f172a]">{t('deadlines.noDeadlines', 'All caught up! No deadlines.')}</p>
-          <p className="text-xs text-[#64748b] mt-1">Add personal study goals or reminders using the button above.</p>
+        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+          <Clock className="mx-auto mb-3 h-9 w-9 text-slate-300" />
+          <p className="text-lg font-semibold text-slate-800">{t('deadlines.noDeadlines', 'All caught up! No deadlines.')}</p>
+          <p className="mt-1 text-sm text-slate-500">Add personal study goals or reminders using the button above.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

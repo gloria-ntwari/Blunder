@@ -1,6 +1,6 @@
 import { query } from '../config/db.js';
 import { uploadImage } from '../config/cloudinary.js';
-import { emitAnnouncement, emitDataChanged } from '../socket/index.js';
+import { emitAnnouncement, emitAnnouncementReaction, emitDataChanged } from '../socket/index.js';
 
 const canPost = (user) =>
   ['super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor'].includes(user.role) ||
@@ -92,7 +92,7 @@ export const reactToAnnouncement = async (req, res, next) => {
   try {
     const { reaction } = req.body;
     if (typeof reaction !== 'string' || [...reaction].length > 8) return res.status(400).json({ message: 'Invalid reaction' });
-    const exists = await query('SELECT 1 FROM announcements WHERE id = $1', [req.params.id]);
+    const exists = await query('SELECT scope, target_track, target_mentor_group_id FROM announcements WHERE id = $1', [req.params.id]);
     if (!exists.rows.length) return res.status(404).json({ message: 'Announcement not found' });
     const current = await query('SELECT 1 FROM announcement_reactions WHERE announcement_id = $1 AND user_id = $2 AND reaction = $3', [req.params.id, req.user.id, reaction]);
     if (current.rows.length) {
@@ -100,7 +100,16 @@ export const reactToAnnouncement = async (req, res, next) => {
     } else {
       await query('INSERT INTO announcement_reactions (announcement_id, user_id, reaction) VALUES ($1, $2, $3)', [req.params.id, req.user.id, reaction]);
     }
-    res.json({ active: !current.rows.length });
+    const countsResult = await query(
+      `SELECT reaction, COUNT(*)::int AS count FROM announcement_reactions
+       WHERE announcement_id = $1 GROUP BY reaction`, [req.params.id]
+    );
+    const reaction_counts = { '👍': 0, '❤️': 0, '😂': 0 };
+    countsResult.rows.forEach(({ reaction: key, count }) => { reaction_counts[key] = count; });
+    const active = !current.rows.length;
+    const update = { announcement_id: req.params.id, reaction_counts };
+    emitAnnouncementReaction(req.app.get('io'), exists.rows[0], update);
+    res.json({ active, reaction_counts });
   } catch (err) { next(err); }
 };
 
