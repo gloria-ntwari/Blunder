@@ -79,7 +79,8 @@ function AppInner() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/deadlines" element={<DeadlinesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/schulhaus" element={user?.role !== 'teacher' ? <SchulhausPage /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/schuelerhaus" element={user?.role !== 'teacher' ? <SchulhausPage /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/schulhaus" element={<Navigate to="/schuelerhaus" replace />} />
           <Route
             path="/guilds"
             element={['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'super_admin'].includes(user?.role)

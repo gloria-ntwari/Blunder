@@ -5,6 +5,7 @@ import {
   createDressCode,
   createPlaylistSong,
   createSchulhausAnnouncement,
+  addDressCodeComment,
   deleteDressCode,
   deleteSchulhausAnnouncement,
   getSchulhaus,
@@ -13,7 +14,7 @@ import {
   unsuggestSong,
   updateDressCode,
   updatePlaylistSong,
-  voteDressCode,
+  reactToDressCode,
   updateSchulhausAnnouncement,
   updatePlaylistStatus,
 } from '../controllers/schulhaus.controller.js';
@@ -24,7 +25,8 @@ router.get('/', getSchulhaus);
 router.post('/dress-codes', upload.single('image'), createDressCode);
 router.put('/dress-codes/:id', upload.single('image'), updateDressCode);
 router.delete('/dress-codes/:id', deleteDressCode);
-router.post('/dress-codes/:id/vote', voteDressCode);
+router.post('/dress-codes/:id/reactions', reactToDressCode);
+router.post('/dress-codes/:id/comments', addDressCodeComment);
 router.post('/songs', suggestSong);
 router.post('/songs/playlist', createPlaylistSong);
 router.put('/songs/:id', updatePlaylistSong);

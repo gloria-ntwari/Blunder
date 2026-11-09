@@ -73,9 +73,9 @@ export default function Topbar({ onMenuClick = () => {} }) {
       food: '/food-menu',
       deadline: `/deadlines?deadline=${id}`,
       mentor_group: '/dashboard',
-      schulhaus_announcement: `/schulhaus?section=announcements&announcement=${id}`,
-      schulhaus_dress_code: `/schulhaus?section=dress-code&dressCode=${id}`,
-      schulhaus_song: `/schulhaus?section=music&song=${id}`,
+      schulhaus_announcement: `/schuelerhaus?section=announcements&announcement=${id}`,
+      schulhaus_dress_code: `/schuelerhaus?section=dress-code&dressCode=${id}`,
+      schulhaus_song: `/schuelerhaus?section=music&song=${id}`,
     };
     navigate(destinations[notification.entity_type] || '/dashboard');
   };

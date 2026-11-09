@@ -7,13 +7,13 @@ const canManage = (user) => ['dj_team', 'super_admin'].includes(user?.role);
 
 const requireView = (req, res) => {
   if (canView(req.user)) return true;
-  res.status(403).json({ message: 'Schulhaus is not available to teacher accounts' });
+  res.status(403).json({ message: 'Schülerhaus is not available to teacher accounts' });
   return false;
 };
 
 const requireManager = (req, res) => {
   if (canManage(req.user)) return true;
-  res.status(403).json({ message: 'Only the DJ team can manage Schulhaus content' });
+  res.status(403).json({ message: 'Only the DJ team can manage Schülerhaus content' });
   return false;
 };
 
@@ -38,10 +38,16 @@ export const getSchulhaus = async (req, res, next) => {
   try {
     const [dressCodes, songs, announcements] = await Promise.all([
       query(`SELECT d.*, u.full_name AS author_name,
-               (SELECT COUNT(*)::int FROM schulhaus_dress_code_votes v WHERE v.dress_code_id = d.id AND v.answer = 'accept') AS accept_count,
-               (SELECT COUNT(*)::int FROM schulhaus_dress_code_votes v WHERE v.dress_code_id = d.id AND v.answer = 'reject') AS reject_count,
-               EXISTS (SELECT 1 FROM schulhaus_dress_code_votes v WHERE v.dress_code_id = d.id AND v.user_id = $1 AND v.answer = 'accept') AS has_accepted,
-               EXISTS (SELECT 1 FROM schulhaus_dress_code_votes v WHERE v.dress_code_id = d.id AND v.user_id = $1 AND v.answer = 'reject') AS has_rejected
+               COALESCE((SELECT jsonb_object_agg(reaction, total) FROM (
+                 SELECT reaction, COUNT(*)::int AS total FROM schulhaus_dress_code_reactions
+                 WHERE dress_code_id = d.id GROUP BY reaction
+               ) reaction_totals), '{}'::jsonb) AS reaction_counts,
+               COALESCE((SELECT jsonb_agg(reaction) FROM schulhaus_dress_code_reactions
+                         WHERE dress_code_id = d.id AND user_id = $1), '[]'::jsonb) AS user_reactions,
+               (SELECT COUNT(*)::int FROM schulhaus_dress_code_comments c WHERE c.dress_code_id = d.id) AS comment_count,
+               COALESCE((SELECT jsonb_agg(jsonb_build_object('id', c.id, 'body', c.body, 'author_name', cu.full_name, 'created_at', c.created_at) ORDER BY c.created_at ASC)
+                         FROM schulhaus_dress_code_comments c LEFT JOIN users cu ON cu.id = c.user_id
+                         WHERE c.dress_code_id = d.id), '[]'::jsonb) AS comments
              FROM schulhaus_dress_codes d
              LEFT JOIN users u ON u.id = d.created_by
              ORDER BY d.wear_date ASC NULLS LAST, d.created_at DESC`, [req.user.id]),
@@ -114,28 +120,43 @@ export const deleteDressCode = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-export const voteDressCode = async (req, res, next) => {
+export const reactToDressCode = async (req, res, next) => {
   if (!requireView(req, res)) return;
-  const answer = req.body.answer;
-  if (!['accept', 'reject'].includes(answer)) return res.status(400).json({ message: 'Choose accept or reject' });
+  const { reaction } = req.body;
+  if (typeof reaction !== 'string' || !reaction.trim() || [...reaction].length > 8) return res.status(400).json({ message: 'Invalid reaction' });
   try {
     const code = await query('SELECT id FROM schulhaus_dress_codes WHERE id = $1', [req.params.id]);
     if (!code.rows.length) return res.status(404).json({ message: 'Dress code not found' });
-    const current = await query('SELECT answer FROM schulhaus_dress_code_votes WHERE dress_code_id = $1 AND user_id = $2', [req.params.id, req.user.id]);
-    if (current.rows[0]?.answer === answer) {
-      await query('DELETE FROM schulhaus_dress_code_votes WHERE dress_code_id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    const current = await query('SELECT 1 FROM schulhaus_dress_code_reactions WHERE dress_code_id = $1 AND user_id = $2 AND reaction = $3', [req.params.id, req.user.id, reaction]);
+    if (current.rows.length) {
+      await query('DELETE FROM schulhaus_dress_code_reactions WHERE dress_code_id = $1 AND user_id = $2 AND reaction = $3', [req.params.id, req.user.id, reaction]);
     } else {
-      await query(`INSERT INTO schulhaus_dress_code_votes (dress_code_id, user_id, answer) VALUES ($1, $2, $3)
-                   ON CONFLICT (dress_code_id, user_id) DO UPDATE SET answer = EXCLUDED.answer, created_at = NOW()`,
-        [req.params.id, req.user.id, answer]);
+      await query('INSERT INTO schulhaus_dress_code_reactions (dress_code_id, user_id, reaction) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING', [req.params.id, req.user.id, reaction]);
     }
-    const counts = await query(`SELECT
-      COUNT(*) FILTER (WHERE answer = 'accept')::int AS accept_count,
-      COUNT(*) FILTER (WHERE answer = 'reject')::int AS reject_count
-      FROM schulhaus_dress_code_votes WHERE dress_code_id = $1`, [req.params.id]);
-    const result = await query('SELECT answer FROM schulhaus_dress_code_votes WHERE dress_code_id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    const counts = await query(`SELECT COALESCE(jsonb_object_agg(reaction, total), '{}'::jsonb) AS reaction_counts FROM (
+      SELECT reaction, COUNT(*)::int AS total FROM schulhaus_dress_code_reactions WHERE dress_code_id = $1 GROUP BY reaction
+    ) reaction_totals`, [req.params.id]);
+    const result = await query('SELECT reaction FROM schulhaus_dress_code_reactions WHERE dress_code_id = $1 AND user_id = $2', [req.params.id, req.user.id]);
     emitSchulhausChanged(req.app.get('io'));
-    res.json({ ...counts.rows[0], answer: result.rows[0]?.answer || null });
+    res.json({ reaction_counts: counts.rows[0].reaction_counts, user_reactions: result.rows.map((row) => row.reaction) });
+  } catch (err) { next(err); }
+};
+
+export const addDressCodeComment = async (req, res, next) => {
+  if (!requireView(req, res)) return;
+  const body = typeof req.body.body === 'string' ? req.body.body.trim() : '';
+  const words = body ? body.split(/\s+/u).filter(Boolean) : [];
+  if (!body) return res.status(400).json({ message: 'Write a comment first' });
+  if (words.length > 10) return res.status(400).json({ message: 'Comments can be up to 10 words' });
+  try {
+    const code = await query('SELECT id FROM schulhaus_dress_codes WHERE id = $1', [req.params.id]);
+    if (!code.rows.length) return res.status(404).json({ message: 'Dress code not found' });
+    const result = await query(
+      `INSERT INTO schulhaus_dress_code_comments (dress_code_id, user_id, body) VALUES ($1, $2, $3)
+       RETURNING id, body, created_at`, [req.params.id, req.user.id, body]
+    );
+    emitSchulhausChanged(req.app.get('io'));
+    res.status(201).json({ ...result.rows[0], author_name: req.user.full_name });
   } catch (err) { next(err); }
 };
 
@@ -176,7 +197,7 @@ export const suggestSong = async (req, res, next) => {
       const details = await query('SELECT title FROM schulhaus_songs WHERE id = $1', [songId]);
       await notifySchulhausAudience(req, {
         title: `New music suggestion: ${details.rows[0].title}`,
-        body: 'A student suggested music for the Schulhaus playlist.',
+        body: 'A student suggested music for the Schülerhaus playlist.',
         entityType: 'schulhaus_song',
         entityId: songId,
       });
@@ -212,7 +233,7 @@ export const createPlaylistSong = async (req, res, next) => {
     );
     await notifySchulhausAudience(req, {
       title: `New playlist music: ${result.rows[0].title}`,
-      body: result.rows[0].artist ? `Added by the DJ team · ${result.rows[0].artist}` : 'Added to the Schulhaus playlist by the DJ team.',
+      body: result.rows[0].artist ? `Added by the DJ team · ${result.rows[0].artist}` : 'Added to the Schülerhaus playlist by the DJ team.',
       entityType: 'schulhaus_song',
       entityId: result.rows[0].id,
     });
@@ -301,7 +322,7 @@ export const createSchulhausAnnouncement = async (req, res, next) => {
       [title, body, imageUrl, req.user.id]
     );
     await notifySchulhausAudience(req, {
-      title: `Schulhaus announcement: ${title}`,
+      title: `Schülerhaus announcement: ${title}`,
       body,
       entityType: 'schulhaus_announcement',
       entityId: result.rows[0].id,

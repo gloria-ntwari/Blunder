@@ -11,6 +11,7 @@ import {
   Plus,
   Send,
   Shirt,
+  SmilePlus,
   ThumbsUp,
   Trash2,
   Upload,
@@ -30,6 +31,9 @@ const validWebUrl = (value) => {
     return ['http:', 'https:'].includes(url.protocol) ? url.href : null;
   } catch { return null; }
 };
+
+const DEFAULT_REACTIONS = ['👍', '❤️', '😂'];
+const EXTRA_REACTIONS = ['😍','😎','😮','😢','😡','🎉','👏','🙏','🔥','💯','🥰','🤔','🙌','💪','✅','❌','⭐','💐','🤩','🤣','😴','🤗','👀','💙','💚','🧡','🤍','💜','😇','🤝','🍾','🥳'];
 
 export default function SchulhausPage() {
   const { user } = useAuthStore();
@@ -63,6 +67,9 @@ export default function SchulhausPage() {
   const [playlistArtist, setPlaylistArtist] = useState('');
   const [playlistLink, setPlaylistLink] = useState('');
   const [editingPlaylistSong, setEditingPlaylistSong] = useState(null);
+  const [expandedDressComments, setExpandedDressComments] = useState({});
+  const [dressCommentDrafts, setDressCommentDrafts] = useState({});
+  const [openDressReactionPicker, setOpenDressReactionPicker] = useState(null);
 
   useEffect(() => {
     const section = new URLSearchParams(location.search).get('section');
@@ -76,7 +83,7 @@ export default function SchulhausPage() {
       setSongs(data.songs || []);
       setAnnouncements(data.announcements || []);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not load Schulhaus');
+      toast.error(error.response?.data?.message || 'Could not load Schülerhaus');
     } finally { setLoading(false); }
   }, []);
 
@@ -179,7 +186,7 @@ export default function SchulhausPage() {
       else await api.post('/schulhaus/announcements', payload);
       closeModal();
       await loadSchulhaus();
-      toast.success(editingAnnouncement ? 'Announcement updated' : 'Schulhaus announcement posted');
+      toast.success(editingAnnouncement ? 'Announcement updated' : 'Schülerhaus announcement posted');
     } catch (error) { toast.error(error.response?.data?.message || 'Could not post announcement'); }
     finally { setSaving(false); }
   };
@@ -234,17 +241,29 @@ export default function SchulhausPage() {
     } catch (error) { toast.error(error.response?.data?.message || 'Could not save your vote'); }
   };
 
-  const voteForDressCode = async (code, answer) => {
+  const reactToDressCode = async (code, reaction) => {
     try {
-      const { data } = await api.post(`/schulhaus/dress-codes/${code.id}/vote`, { answer });
+      const { data } = await api.post(`/schulhaus/dress-codes/${code.id}/reactions`, { reaction });
       setDressCodes((current) => current.map((item) => item.id === code.id ? {
         ...item,
-        accept_count: data.accept_count,
-        reject_count: data.reject_count,
-        has_accepted: data.answer === 'accept',
-        has_rejected: data.answer === 'reject',
+        reaction_counts: data.reaction_counts,
+        user_reactions: data.user_reactions,
       } : item));
-    } catch (error) { toast.error(error.response?.data?.message || 'Could not save your dress-code vote'); }
+    } catch (error) { toast.error(error.response?.data?.message || 'Could not save your reaction'); }
+  };
+
+  const submitDressComment = async (event, code) => {
+    event.preventDefault();
+    const body = dressCommentDrafts[code.id]?.trim() || '';
+    if (!body) return;
+    const wordCount = body.split(/\s+/u).filter(Boolean).length;
+    if (wordCount > 10) return toast.error('Comments can be up to 10 words');
+    try {
+      await api.post(`/schulhaus/dress-codes/${code.id}/comments`, { body });
+      setDressCommentDrafts((current) => ({ ...current, [code.id]: '' }));
+      setExpandedDressComments((current) => ({ ...current, [code.id]: true }));
+      await loadSchulhaus();
+    } catch (error) { toast.error(error.response?.data?.message || 'Could not add comment'); }
   };
 
   const setPlaylistStatus = async (song, inPlaylist) => {
@@ -275,14 +294,14 @@ export default function SchulhausPage() {
         
         <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <h1 className="text-[30px] font-semibold leading-[37.5px] text-[#0f172a] ">Schulhaus</h1>
+            <h1 className="text-[30px] font-semibold leading-[37.5px] text-[#0f172a] ">Schülerhaus</h1>
             <p className="mt-1 text-[#64748b]">Dress codes, music picks, the playlist, and announcements for the next campus gathering.</p>
           </div>
 
         </div>
       
 
-      <nav className="flex flex-wrap items-center gap-2" aria-label="Schulhaus sections">
+      <nav className="flex flex-wrap items-center gap-2" aria-label="Schülerhaus sections">
         {[
           { key: 'announcements', label: 'Announcements' },
           { key: 'dress-code', label: 'Dress Code' },
@@ -303,11 +322,11 @@ export default function SchulhausPage() {
         ))}
       </nav>
 
-      {loading ? <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading Schulhaus…</div> : (
+      {loading ? <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading Schülerhaus…</div> : (
         <>
           {activeSection === 'announcements' && <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <div><h2 className="flex items-center gap-2 text-lg font-bold text-[#0f172a]">Schulhaus announcements</h2><p className="mt-0.5 text-sm text-slate-500">The latest updates from the DJ team.</p></div>
+              <div><h2 className="flex items-center gap-2 text-lg font-bold text-[#0f172a]">Schülerhaus announcements</h2><p className="mt-0.5 text-sm text-slate-500">The latest updates from the DJ team.</p></div>
               {isDjTeam && <button onClick={() => openAnnouncementModal()} className="inline-flex items-center gap-2 rounded-lg bg-[#1a2b49] px-3 py-2 text-xs font-semibold text-white hover:bg-[#243d66]"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Post update</span></button>}
             </div>
             {announcements.length ? <div className="grid gap-3 md:grid-cols-2">{announcements.map((announcement) => <article id={`schulhaus-${announcement.id}`} key={announcement.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -319,18 +338,30 @@ export default function SchulhausPage() {
           {activeSection === 'dress-code' && <section className="space-y-3">
             <div className="flex items-center justify-between gap-3"><div><h2 className="flex items-center gap-2 text-lg font-bold text-[#0f172a]"> Dress code</h2><p className="mt-0.5 text-sm text-slate-500">What to wear for the next gathering.</p></div>{isDjTeam && <button onClick={() => openDressModal()} className="inline-flex items-center gap-2 rounded-lg bg-[#1a2b49] px-3 py-2 text-xs font-semibold text-white hover:bg-[#243d66]"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Add dress code</span></button>}</div>
             {dressCodes.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{dressCodes.map((code) => {
-              const total = code.accept_count + code.reject_count;
-              const acceptPercent = total ? Math.round((code.accept_count / total) * 100) : 0;
+              const reactionCounts = code.reaction_counts || {};
+              const userReactions = code.user_reactions || [];
+              const commentCount = Number(code.comment_count || 0);
+              const commentDraft = dressCommentDrafts[code.id] || '';
+              const commentWords = commentDraft.trim() ? commentDraft.trim().split(/\s+/u).filter(Boolean).length : 0;
               return <article id={`schulhaus-${code.id}`} key={code.id} className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
               <div className="relative h-48 bg-gradient-to-br from-[#e4f2fe] via-[#f5f8fc] to-[#dbeafe]">{code.image_url ? <img src={code.image_url} alt={code.title} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" /> : <div className="flex h-full items-center justify-center"><Shirt className="h-16 w-16 text-[#2383c9]/40" /></div>}
                 {code.wear_date && <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-sm bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#1a2b49] shadow-sm"><CalendarDays className="h-3.5 w-3.5" />{format(parseISO(code.wear_date), 'EEE, MMM d')}</span>}
-                {total > 0 && <span className="absolute bottom-3 left-3 rounded-sm bg-emerald-600 px-3 py-1 text-[11px] font-bold text-white shadow-sm">{acceptPercent}% accepted</span>}
                 {isDjTeam && <div className="absolute right-3 top-3 flex gap-1"><button onClick={() => openDressModal(code)} title="Edit dress code" className="rounded-full bg-white/95 p-2 text-slate-500 shadow-sm hover:text-[#2383c9]"><Pencil className="h-4 w-4" /></button><button onClick={() => removeDressCode(code.id)} title="Remove dress code" className="rounded-full bg-white/95 p-2 text-slate-500 shadow-sm hover:text-red-600"><Trash2 className="h-4 w-4" /></button></div>}
               </div>
               <div className="p-4"><h3 className="font-bold text-[#0f172a]">{code.title}</h3>{code.details && <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-slate-600">{code.details}</p>}
-                <div className="mt-3 h-2 overflow-hidden rounded-sm bg-red-500"><div className="h-full rounded-full bg-emerald-500 transition-[width]" style={{ width: `${acceptPercent}%` }} /></div>
-                <p className="mt-1.5 text-[11px] text-slate-500">{code.accept_count} accept · {code.reject_count} reject · {total} {total === 1 ? 'vote' : 'votes'}</p>
-                <div className="mt-3 grid grid-cols-2 gap-2"><button onClick={() => voteForDressCode(code, 'accept')} aria-label="Accept dress code" aria-pressed={code.has_accepted} className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-colors ${code.has_accepted ? 'border-emerald-500 bg-emerald-100 text-emerald-800' : 'border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}><Check className="h-4 w-4" />Accept <span>{code.accept_count}</span></button><button onClick={() => voteForDressCode(code, 'reject')} aria-label="Reject dress code" aria-pressed={code.has_rejected} className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-colors ${code.has_rejected ? 'border-red-400 bg-red-100 text-red-800' : 'border-red-100 bg-red-50 text-red-700 hover:bg-red-100'}`}><X className="h-4 w-4" />Reject <span>{code.reject_count}</span></button></div>
+                <div className="relative mt-3 flex flex-wrap items-center gap-1.5">{[...new Set([...DEFAULT_REACTIONS, ...Object.keys(reactionCounts), ...userReactions])].map((emoji) => {
+                  const count = reactionCounts[emoji] || 0;
+                  const active = userReactions.includes(emoji);
+                  return <button key={emoji} type="button" onClick={() => reactToDressCode(code, emoji)} aria-label={`React ${emoji}`} aria-pressed={active} title={emoji} className={`rounded-full border px-2 py-1 text-xs transition-colors ${active ? 'border-[#2383c9] bg-[#e4f2fe] text-[#1a2b49]' : 'border-slate-200 text-[#64748b] hover:bg-slate-50'}`}>{emoji}{count ? ` ${count}` : ''}</button>;
+                })}
+                  <button type="button" onClick={() => setOpenDressReactionPicker(openDressReactionPicker === code.id ? null : code.id)} className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-[#64748b] hover:bg-slate-50" aria-label="More reactions"><SmilePlus className="h-4 w-4" /></button>
+                  {openDressReactionPicker === code.id && <div className="absolute bottom-10 left-0 z-20 grid w-64 grid-cols-8 gap-1 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">{EXTRA_REACTIONS.map((emoji) => <button key={emoji} type="button" onClick={() => { reactToDressCode(code, emoji); setOpenDressReactionPicker(null); }} className="h-7 w-7 rounded text-lg hover:bg-slate-100" aria-label={`React ${emoji}`}>{emoji}</button>)}</div>}
+                </div>
+                <div className="mt-3 border-t border-slate-100 pt-2.5"><button type="button" onClick={() => setExpandedDressComments((current) => ({ ...current, [code.id]: !current[code.id] }))} aria-expanded={Boolean(expandedDressComments[code.id])} className="text-xs font-semibold text-[#1a2b49] hover:text-[#2383c9]">{expandedDressComments[code.id] ? 'Hide comments' : 'Comments'} ({commentCount})</button>
+                  {expandedDressComments[code.id] && <div className="mt-2 space-y-2">{code.comments?.length > 0 && <ul className="max-h-36 space-y-2 overflow-y-auto">{code.comments.map((comment) => <li key={comment.id} className="rounded-md bg-slate-50 px-2.5 py-2"><p className="text-xs text-slate-700">{comment.body}</p><p className="mt-1 text-[10px] text-slate-400">{comment.author_name || 'Student'}</p></li>)}</ul>}
+                    <form onSubmit={(event) => submitDressComment(event, code)} className="space-y-1.5"><div className="flex gap-2"><input value={commentDraft} onChange={(event) => setDressCommentDrafts((current) => ({ ...current, [code.id]: event.target.value }))} maxLength={300} placeholder="Add a short comment" aria-label="Dress-code comment, up to 10 words" className="min-w-0 flex-1 rounded-lg border border-slate-200 px-2.5 py-2 text-xs outline-none focus:border-[#2383c9]" /><button type="submit" disabled={!commentDraft.trim() || commentWords > 10} className="rounded-lg bg-[#1a2b49] px-3 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40">Send</button></div><p className={`text-right text-[10px] ${commentWords > 10 ? 'text-red-600' : 'text-slate-400'}`}>{commentWords}/10 words</p></form>
+                  </div>}
+                </div>
                 <p className="mt-3 text-[11px] text-slate-400">Shared by {code.author_name || 'DJ-TEAM'}</p></div>
               </article>;
             })}</div> : <EmptyState icon={Shirt} title="No dress codes posted" message="The DJ team will share outfit inspiration here." />}
@@ -366,7 +397,7 @@ export default function SchulhausPage() {
       </form></Modal>}
 
       {modal === 'announcement' && <Modal onClose={closeModal} maxWidth="max-w-lg"><form onSubmit={saveAnnouncement} className="space-y-4 p-6">
-        <ModalHeading icon={Megaphone} title={editingAnnouncement ? 'Edit Schulhaus update' : 'Post a Schulhaus update'} subtitle="Share a message with everyone who can access Schulhaus." onClose={closeModal} />
+        <ModalHeading icon={Megaphone} title={editingAnnouncement ? 'Edit Schülerhaus update' : 'Post a Schülerhaus update'} subtitle="Share a message with everyone who can access Schülerhaus." onClose={closeModal} />
         <label className="block text-xs font-semibold text-slate-700">Title<input required maxLength={200} value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} placeholder="Announcement title" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
         <label className="block text-xs font-semibold text-slate-700">Message<textarea required rows={5} value={announcementBody} onChange={(event) => setAnnouncementBody(event.target.value)} placeholder="Write your update…" className="mt-1.5 w-full resize-y rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
         <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[#2383c9]/40 bg-[#e4f2fe]/40 p-3 text-xs font-semibold text-[#1a2b49]"><ImagePlus className="h-4 w-4" /><span>{announcementImage?.name || 'Add an announcement photo (optional)'}</span><input type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setAnnouncementImage(file); setAnnouncementRemoveImage(false); setAnnouncementPreview(URL.createObjectURL(file)); } }} /></label>

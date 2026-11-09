@@ -175,12 +175,12 @@ export default function Sidebar({ isOpen = false, onClose = () => {}, collapsed 
           )}
 
           {role !== 'teacher' && (
-            <NavLink to="/schulhaus" onClick={onClose} title="Schulhaus" className={({ isActive }) => navLinkClass(isActive)}>
+            <NavLink to="/schuelerhaus" onClick={onClose} title="Schülerhaus" className={({ isActive }) => navLinkClass(isActive)}>
               {({ isActive }) => (
                 <>
                   {isActive && indicator}
                   <Music2 className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                  <span className={collapsed ? 'lg:hidden' : ''}>Schulhaus</span>
+                  <span className={collapsed ? 'lg:hidden' : ''}>Schülerhaus</span>
                 </>
               )}
             </NavLink>
