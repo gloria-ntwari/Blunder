@@ -10,7 +10,9 @@ import {
   getSchulhaus,
   suggestSong,
   toggleSongVote,
+  unsuggestSong,
   updateDressCode,
+  updatePlaylistSong,
   voteDressCode,
   updateSchulhausAnnouncement,
   updatePlaylistStatus,
@@ -25,6 +27,8 @@ router.delete('/dress-codes/:id', deleteDressCode);
 router.post('/dress-codes/:id/vote', voteDressCode);
 router.post('/songs', suggestSong);
 router.post('/songs/playlist', createPlaylistSong);
+router.put('/songs/:id', updatePlaylistSong);
+router.delete('/songs/:id/suggestion', unsuggestSong);
 router.post('/songs/:id/vote', toggleSongVote);
 router.put('/songs/:id/playlist', updatePlaylistStatus);
 router.post('/announcements', upload.single('image'), createSchulhausAnnouncement);

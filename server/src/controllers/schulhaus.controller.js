@@ -221,6 +221,43 @@ export const createPlaylistSong = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+export const updatePlaylistSong = async (req, res, next) => {
+  if (!requireManager(req, res)) return;
+  const title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+  const artist = typeof req.body.artist === 'string' ? req.body.artist.trim() : '';
+  const link = typeof req.body.link === 'string' ? req.body.link.trim() : '';
+  if (!title) return res.status(400).json({ message: 'Music name is required' });
+  if (link) {
+    try { if (!['http:', 'https:'].includes(new URL(link).protocol)) throw new Error('Invalid protocol'); }
+    catch { return res.status(400).json({ message: 'Music link must be a valid http or https URL' }); }
+  }
+  try {
+    const result = await query(
+      `UPDATE schulhaus_songs SET title = $1, artist = $2, link = $3
+       WHERE id = $4 AND in_playlist = TRUE RETURNING *`,
+      [title, artist || null, link || null, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ message: 'Playlist song not found' });
+    emitSchulhausChanged(req.app.get('io'));
+    res.json(result.rows[0]);
+  } catch (err) { next(err); }
+};
+
+export const unsuggestSong = async (req, res, next) => {
+  if (!requireView(req, res)) return;
+  try {
+    const result = await query(
+      'DELETE FROM schulhaus_song_suggestions WHERE song_id = $1 AND user_id = $2 RETURNING song_id',
+      [req.params.id, req.user.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ message: 'Your suggestion was not found' });
+    await query(`DELETE FROM schulhaus_songs s WHERE s.id = $1 AND s.in_playlist = FALSE
+                 AND NOT EXISTS (SELECT 1 FROM schulhaus_song_suggestions ss WHERE ss.song_id = s.id)`, [req.params.id]);
+    emitSchulhausChanged(req.app.get('io'));
+    res.json({ message: 'Suggestion removed' });
+  } catch (err) { next(err); }
+};
+
 export const toggleSongVote = async (req, res, next) => {
   if (!requireView(req, res)) return;
   try {

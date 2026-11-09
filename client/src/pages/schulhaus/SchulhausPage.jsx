@@ -8,16 +8,12 @@ import {
   Pencil,
   ListMusic,
   Megaphone,
-  Music2,
   Plus,
   Send,
   Shirt,
-  Sparkles,
-  ThumbsDown,
   ThumbsUp,
   Trash2,
   Upload,
-  Users,
   Vote,
   X,
 } from 'lucide-react';
@@ -66,6 +62,7 @@ export default function SchulhausPage() {
   const [playlistTitle, setPlaylistTitle] = useState('');
   const [playlistArtist, setPlaylistArtist] = useState('');
   const [playlistLink, setPlaylistLink] = useState('');
+  const [editingPlaylistSong, setEditingPlaylistSong] = useState(null);
 
   useEffect(() => {
     const section = new URLSearchParams(location.search).get('section');
@@ -139,6 +136,15 @@ export default function SchulhausPage() {
     setPlaylistTitle('');
     setPlaylistArtist('');
     setPlaylistLink('');
+    setEditingPlaylistSong(null);
+  };
+
+  const openPlaylistSongModal = (song = null) => {
+    setEditingPlaylistSong(song);
+    setPlaylistTitle(song?.title || '');
+    setPlaylistArtist(song?.artist || '');
+    setPlaylistLink(song?.link || '');
+    setModal('playlist-song');
   };
 
   const saveDressCode = async (event) => {
@@ -182,10 +188,11 @@ export default function SchulhausPage() {
     event.preventDefault();
     setSaving(true);
     try {
-      await api.post('/schulhaus/songs/playlist', { title: playlistTitle, artist: playlistArtist, link: playlistLink });
+      if (editingPlaylistSong) await api.put(`/schulhaus/songs/${editingPlaylistSong.id}`, { title: playlistTitle, artist: playlistArtist, link: playlistLink });
+      else await api.post('/schulhaus/songs/playlist', { title: playlistTitle, artist: playlistArtist, link: playlistLink });
       closeModal();
       await loadSchulhaus();
-      toast.success('Song added to the playlist');
+      toast.success(editingPlaylistSong ? 'Playlist song updated' : 'Song added to the playlist');
     } catch (error) { toast.error(error.response?.data?.message || 'Could not add song to playlist'); }
     finally { setSaving(false); }
   };
@@ -209,6 +216,14 @@ export default function SchulhausPage() {
       await loadSchulhaus();
       toast.success(`You suggested “${song.title}”`);
     } catch (error) { toast.error(error.response?.data?.message || 'Could not save your suggestion'); }
+  };
+
+  const unsuggestSong = async (song) => {
+    try {
+      await api.delete(`/schulhaus/songs/${song.id}/suggestion`);
+      await loadSchulhaus();
+      toast.success(`Removed your suggestion for “${song.title}”`);
+    } catch (error) { toast.error(error.response?.data?.message || 'Could not remove your suggestion'); }
   };
 
   const voteForSong = async (song) => {
@@ -254,8 +269,6 @@ export default function SchulhausPage() {
     .sort((left, right) => right.vote_count - left.vote_count || new Date(left.created_at) - new Date(right.created_at));
   const suggestions = songs.filter((song) => song.suggestion_count > 0)
     .sort((left, right) => right.vote_count - left.vote_count || right.suggestion_count - left.suggestion_count);
-  const featuredSongId = playlist[0]?.id;
-
   return (
     <div className="mx-auto max-w-7xl space-y-6 pb-12 font-['Outfit']">
     
@@ -317,7 +330,7 @@ export default function SchulhausPage() {
               <div className="p-4"><h3 className="font-bold text-[#0f172a]">{code.title}</h3>{code.details && <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-slate-600">{code.details}</p>}
                 <div className="mt-3 h-2 overflow-hidden rounded-sm bg-red-500"><div className="h-full rounded-full bg-emerald-500 transition-[width]" style={{ width: `${acceptPercent}%` }} /></div>
                 <p className="mt-1.5 text-[11px] text-slate-500">{code.accept_count} accept · {code.reject_count} reject · {total} {total === 1 ? 'vote' : 'votes'}</p>
-                <div className="mt-3 grid grid-cols-2 gap-2"><button onClick={() => voteForDressCode(code, 'accept')} aria-pressed={code.has_accepted} className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-colors ${code.has_accepted ? 'border-emerald-500 bg-emerald-100 text-emerald-800' : 'border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}><ThumbsUp className="h-3.5 w-3.5" />Accept <span>{code.accept_count}</span></button><button onClick={() => voteForDressCode(code, 'reject')} aria-pressed={code.has_rejected} className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-colors ${code.has_rejected ? 'border-red-400 bg-red-100 text-red-800' : 'border-red-100 bg-red-50 text-red-700 hover:bg-red-100'}`}><ThumbsDown className="h-3.5 w-3.5" />Reject <span>{code.reject_count}</span></button></div>
+                <div className="mt-3 grid grid-cols-2 gap-2"><button onClick={() => voteForDressCode(code, 'accept')} aria-label="Accept dress code" aria-pressed={code.has_accepted} className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-colors ${code.has_accepted ? 'border-emerald-500 bg-emerald-100 text-emerald-800' : 'border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}`}><Check className="h-4 w-4" />Accept <span>{code.accept_count}</span></button><button onClick={() => voteForDressCode(code, 'reject')} aria-label="Reject dress code" aria-pressed={code.has_rejected} className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-colors ${code.has_rejected ? 'border-red-400 bg-red-100 text-red-800' : 'border-red-100 bg-red-50 text-red-700 hover:bg-red-100'}`}><X className="h-4 w-4" />Reject <span>{code.reject_count}</span></button></div>
                 <p className="mt-3 text-[11px] text-slate-400">Shared by {code.author_name || 'DJ-TEAM'}</p></div>
               </article>;
             })}</div> : <EmptyState icon={Shirt} title="No dress codes posted" message="The DJ team will share outfit inspiration here." />}
@@ -326,7 +339,7 @@ export default function SchulhausPage() {
           {activeSection === 'music' && <section className="grid items-start gap-5 xl:grid-cols-[1.1fr_.9fr]">
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-3"><div><h2 className="flex items-center gap-2 text-lg font-bold text-[#0f172a]"> Playlist</h2><p className="mt-0.5 text-sm text-slate-500">Vote for your favorites. The top-voted playlist song stays at the top.</p></div>{isDjTeam && <button onClick={() => setModal('playlist-song')} className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#1a2b49] px-3 py-2 text-xs font-semibold text-white hover:bg-[#243d66]"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Add music</span></button>}</div>
-              {playlist.length ? <PlaylistTable songs={playlist} isDjTeam={isDjTeam} onVote={voteForSong} onPlaylistChange={setPlaylistStatus} /> : <EmptyState icon={ListMusic} title="The playlist is taking shape" message={isDjTeam ? 'Add music directly or choose a community suggestion.' : 'Vote for songs in the suggestions list. The DJ team will choose what goes on the playlist.'} />}
+              {playlist.length ? <PlaylistTable songs={playlist} isDjTeam={isDjTeam} onVote={voteForSong} onEdit={openPlaylistSongModal} onPlaylistChange={setPlaylistStatus} /> : <EmptyState icon={ListMusic} title="The playlist is taking shape" message={isDjTeam ? 'Add music directly or choose a community suggestion.' : 'Vote for songs in the suggestions list. The DJ team will choose what goes on the playlist.'} />}
             </div>
 
             <div className="space-y-7 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -336,7 +349,7 @@ export default function SchulhausPage() {
                 <div className="grid gap-2 sm:grid-cols-2"><label className="block text-xs font-semibold text-slate-700">Artist <span className="font-normal text-slate-400">(optional)</span><input maxLength={200} value={songArtist} onChange={(event) => setSongArtist(event.target.value)} placeholder="Artist or performer" className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label><label className="block text-xs font-semibold text-slate-700">Music link <span className="font-normal text-slate-400">(optional)</span><input type="url" value={songLink} onChange={(event) => setSongLink(event.target.value)} placeholder="https://…" className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label></div>
                 <button disabled={saving} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#1a2b49] px-3 py-2.5 text-xs font-semibold  text-white transition-colors hover:bg-slate-700 disabled:opacity-60"><Send className="h-3.5 w-3.5" />{saving ? 'Adding…' : 'Suggest music'}</button>
               </form>
-              {suggestions.length ? <div className="space-y-2">{suggestions.map((song) => <SongCard key={song.id} song={song} id={`schulhaus-${song.id}`} isDjTeam={isDjTeam} onVote={voteForSong} onSuggest={suggestExisting} onPlaylistChange={setPlaylistStatus} />)}</div> : <EmptyState icon={Vote} title="No music suggestions yet" />}
+              {suggestions.length ? <div className="space-y-1.5">{suggestions.map((song) => <SuggestionRow key={song.id} song={song} id={`schulhaus-${song.id}`} isDjTeam={isDjTeam} onSuggest={suggestExisting} onUnsuggest={unsuggestSong} onPlaylistChange={setPlaylistStatus} />)}</div> : <EmptyState icon={Vote} title="No music suggestions yet" />}
             </div>
           </section>}
         </>
@@ -362,53 +375,35 @@ export default function SchulhausPage() {
       </form></Modal>}
 
       {modal === 'playlist-song' && <Modal onClose={closeModal} maxWidth="max-w-lg"><form onSubmit={savePlaylistSong} className="space-y-4 p-6">
-        <ModalHeading icon={ListMusic} title="Add music to the playlist" subtitle="Students can vote for this track after it is added." onClose={closeModal} />
+        <ModalHeading icon={ListMusic} title={editingPlaylistSong ? 'Edit playlist song' : 'Add music to the playlist'} subtitle="Students can vote for tracks on the playlist." onClose={closeModal} />
         <label className="block text-xs font-semibold text-slate-700">Music name<input required maxLength={200} value={playlistTitle} onChange={(event) => setPlaylistTitle(event.target.value)} placeholder="Song title" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
         <label className="block text-xs font-semibold text-slate-700">Artist <span className="font-normal text-slate-400">(optional)</span><input maxLength={200} value={playlistArtist} onChange={(event) => setPlaylistArtist(event.target.value)} placeholder="Artist or performer" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
         <label className="block text-xs font-semibold text-slate-700">Music link <span className="font-normal text-slate-400">(optional)</span><input type="url" value={playlistLink} onChange={(event) => setPlaylistLink(event.target.value)} placeholder="https://…" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
-        <ModalActions onCancel={closeModal} saving={saving} action="Add to playlist" />
+        <ModalActions onCancel={closeModal} saving={saving} action={editingPlaylistSong ? 'Save changes' : 'Add to playlist'} />
       </form></Modal>}
     </div>
   );
 }
 
-function PlaylistTable({ songs, isDjTeam, onVote, onPlaylistChange }) {
+function PlaylistTable({ songs, isDjTeam, onVote, onEdit, onPlaylistChange }) {
   return <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
     <div className="hidden grid-cols-[44px_minmax(0,1fr)_100px_130px] items-center gap-3 border-b border-slate-100 bg-[#1a2b49] px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wide text-white sm:grid">
       <span>Rank</span><span>Song</span><span className="text-center">Votes</span><span className="text-right">Status</span>
     </div>
     <ol className="divide-y divide-slate-100">{songs.map((song, index) => <li id={`schulhaus-${song.id}`} key={song.id} className={`grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2.5 px-3 py-3 sm:grid-cols-[44px_minmax(0,1fr)_100px_130px] sm:gap-3 sm:px-4 ${index === 0 ? 'bg-[#f4f8fc]' : 'bg-white'}`}>
       <span className={`text-sm font-bold ${index === 0 ? 'text-[#2383c9]' : 'text-slate-400'}`}>{String(index + 1).padStart(2, '0')}</span>
-      <div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate text-sm font-semibold text-[#0f172a]">{song.title}</p>{index === 0 && <span className="shrink-0 rounded-xs bg-[#e4f2fe] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1a6ba8]">Leading</span>}</div><p className="mt-0.5 truncate text-xs text-slate-500">{song.artist || 'Artist not listed'}</p></div>
+      <div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate text-sm font-semibold text-[#0f172a]">{song.title}</p>{index === 0 && <span className="shrink-0 rounded-xs bg-[#e4f2fe] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-[#1a6ba8]">Leading</span>}</div><p className="mt-0.5 truncate text-xs text-slate-500">{song.artist || 'Artist not listed'}</p>{validWebUrl(song.link) && <a href={validWebUrl(song.link)} target="_blank" rel="noreferrer" className="mt-1 inline-block text-[11px] font-medium text-[#2383c9] hover:underline">Open music link</a>}</div>
       <button onClick={() => onVote(song)} aria-pressed={song.has_voted} aria-label={`${song.has_voted ? 'Remove vote from' : 'Vote for'} ${song.title}; ${song.vote_count} votes`} className={`inline-flex items-center justify-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold sm:justify-self-center ${song.has_voted ? 'border-[#2383c9] bg-[#e4f2fe] text-[#1a2b49]' : 'border-slate-200 text-slate-600 hover:border-[#2383c9] hover:text-[#1a6ba8]'}`}><ThumbsUp className="h-3.5 w-3.5" /><span>{song.vote_count}</span></button>
-      <div className="col-span-3 flex items-center justify-between sm:col-span-1 sm:justify-end">{isDjTeam ? <button onClick={() => onPlaylistChange(song, false)} className="text-[11px] font-medium text-slate-500 hover:text-red-600">Remove from playlist</button> : <span className="text-[10px] text-slate-400">{song.suggestion_count} {song.suggestion_count === 1 ? 'suggestion' : 'suggestions'}</span>}</div>
+      <div className="col-span-3 flex items-center justify-between gap-3 sm:col-span-1 sm:justify-end">{isDjTeam ? <div className="flex items-center gap-3"><button onClick={() => onEdit(song)} className="text-[11px] font-medium text-[#2383c9] hover:underline">Edit</button><button onClick={() => onPlaylistChange(song, false)} className="text-[11px] font-medium text-slate-500 hover:text-red-600">Remove</button></div> : <span className="text-[10px] text-slate-400">{song.suggestion_count} {song.suggestion_count === 1 ? 'suggestion' : 'suggestions'}</span>}</div>
     </li>)}</ol>
   </div>;
 }
 
-function SongCard({ song, rank, id, isDjTeam, onVote, onSuggest, onPlaylistChange }) {
-  const link = song.link ? validWebUrl(song.link) : null;
-  const names = (song.suggesters || []).map((person) => person.name);
-  const visibleNames = names.slice(0, 3);
+function SuggestionRow({ song, id, isDjTeam, onSuggest, onUnsuggest, onPlaylistChange }) {
   return (
-    <article id={id} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm transition-colors hover:border-slate-300">
-      <div className="flex items-center gap-3">
-        {rank && <span className="w-5 shrink-0 text-center text-sm font-bold text-slate-500">{rank}</span>}
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#e4f2fe] text-[#2383c9]"><Music2 className="h-4 w-4" /></div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2"><h3 className="truncate text-sm font-bold text-[#0f172a]">{song.title}</h3>{song.in_playlist && <span className="rounded-full bg-[#e4f2fe] px-2 py-0.5 text-[10px] font-bold text-[#1a6ba8]">Playlist</span>}</div>
-          {song.artist && <p className="mt-0.5 text-xs text-slate-500">{song.artist}</p>}
-          {visibleNames.length > 0 && <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-5 text-slate-500"><Users className="mt-0.5 h-3.5 w-3.5 shrink-0" /><span>Suggested by {visibleNames.join(', ')}{names.length > 3 ? ` and ${names.length - 3} more` : ''}</span></p>}
-          {link && <a href={link} target="_blank" rel="noreferrer" className="mt-1 inline-block text-[11px] font-medium text-[#2383c9] hover:underline">Open music link</a>}
-        </div>
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2">
-        <button onClick={() => onVote(song)} className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors ${song.has_voted ? 'border-[#2383c9] bg-[#e4f2fe] text-[#1a2b49]' : 'border-slate-200 text-slate-600 hover:border-[#2383c9] hover:text-[#1a6ba8]'}`} aria-pressed={song.has_voted}><ThumbsUp className="h-3 w-3" />{song.vote_count}</button>
-        <span className="text-[10px] text-slate-400">{song.suggestion_count} {song.suggestion_count === 1 ? 'suggestion' : 'suggestions'}</span>
-        {!song.has_suggested && <button onClick={() => onSuggest(song)} className={`${isDjTeam ? '' : 'ml-auto'} rounded-lg px-2 py-1 text-[10px] font-semibold text-[#2383c9] hover:bg-[#e4f2fe]`}>Suggest this</button>}
-        {song.has_suggested && <span className={`${isDjTeam ? '' : 'ml-auto'} inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-semibold text-emerald-700`}><Check className="h-3 w-3" /> Suggested</span>}
-        {isDjTeam && <button onClick={() => onPlaylistChange(song, !song.in_playlist)} className="ml-auto inline-flex items-center gap-1 rounded-lg bg-[#1a2b49] px-2 py-1 text-[10px] font-semibold text-white hover:bg-[#243d66]">{song.in_playlist ? <><X className="h-3 w-3" /> Remove</> : <><Plus className="h-3 w-3" /> Add to playlist</>}</button>}
-      </div>
+    <article id={id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 transition-colors hover:border-slate-300">
+      <div className="min-w-0"><p className="truncate text-sm font-semibold text-[#0f172a]">{song.title}</p><p className="mt-0.5 truncate text-xs text-slate-500">{[song.artist, `${song.suggestion_count} ${song.suggestion_count === 1 ? 'suggestion' : 'suggestions'}`].filter(Boolean).join(' · ')}</p></div>
+      <div className="flex shrink-0 items-center gap-1.5">{song.has_suggested ? <><span className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-emerald-700"><Check className="h-3.5 w-3.5" />Suggested</span><button onClick={() => onUnsuggest(song)} className="rounded-md px-2 py-1 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-red-600">Undo</button></> : <button onClick={() => onSuggest(song)} className="rounded-md px-2 py-1 text-[11px] font-semibold text-[#2383c9] hover:bg-[#e4f2fe]">Suggest</button>}{isDjTeam && !song.in_playlist && <button onClick={() => onPlaylistChange(song, true)} className="rounded-md bg-[#1a2b49] px-2 py-1 text-[11px] font-semibold text-white hover:bg-[#243d66]">Add to playlist</button>}</div>
     </article>
   );
 }
