@@ -77,6 +77,11 @@
     "users": "Users",
     "adminPanel": "Admin panel",
     "profile": "My profile & groups",
+    "guilds": "Guilds",
+    "userManagement": "User Management",
+    "mentorGroups": "Mentor Groups",
+    "settings": "Settings",
+    "signOut": "Sign Out",
     "betterTogether": "Better, together.",
     "betterTogetherSub": "A place for everything. A community for everyone."
   },
@@ -215,6 +220,34 @@
   "tracks": {
     "IB": "IB",
     "MINT": "MINT",
-    "Abitur": "Abitur"
+    "Abitur": "Abitur",
+    "Agrar": "Agrar"
+  },
+  "schulhaus": {
+    "title": "Schülerhaus",
+    "subtitle": "Dress codes, music picks, the playlist, and announcements for the next campus gathering.",
+    "announcementsTab": "Announcements",
+    "dressCodeTab": "Dress Code",
+    "musicTab": "Music",
+    "loading": "Loading Schülerhaus…",
+    "announcementsHeading": "Schülerhaus announcements",
+    "announcementsIntro": "The latest updates from the DJ team.",
+    "postUpdate": "Post update",
+    "editDressCode": "Edit dress code",
+    "shareDressCode": "Share a dress code",
+    "dressModalIntro": "Add a photo and a few details so everyone knows what to wear.",
+    "editUpdate": "Edit Schülerhaus update",
+    "postUpdateTitle": "Post a Schülerhaus update",
+    "announcementModalIntro": "Share a message with everyone who can access Schülerhaus.",
+    "editPlaylistSong": "Edit playlist song",
+    "addMusicToPlaylist": "Add music to the playlist",
+    "playlistModalIntro": "Students can vote for tracks on the playlist."
+  },
+  "topbar": {
+    "switchLanguage": "Switch language",
+    "openNavigation": "Open navigation",
+    "notifications": "Notifications",
+    "phoneNotificationsEnabled": "Phone notifications enabled",
+    "student": "Student"
   }
 }

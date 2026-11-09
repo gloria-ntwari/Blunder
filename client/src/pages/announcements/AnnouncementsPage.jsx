@@ -21,7 +21,7 @@ import { format } from 'date-fns';
 
 import Modal from '../../components/layout/Modal.jsx';
 import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
-import { getClassesForTrack } from '../../utils/academicTracks';
+import { ACADEMIC_TRACKS, getClassesForTrack } from '../../utils/academicTracks';
 import { useLocation } from 'react-router-dom';
 
 export default function AnnouncementsPage() {
@@ -262,7 +262,7 @@ export default function AnnouncementsPage() {
             className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>{t('New announcement')}</span>
+            <span>{t('announcements.addNew', '+ New announcement')}</span>
           </button>
         )}
       </div>
@@ -484,9 +484,7 @@ export default function AnnouncementsPage() {
                       }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors"
                     >
-                      <option value="IB">IB</option>
-                      <option value="MINT">MINT</option>
-                      <option value="Abitur">Abitur</option>
+                      {ACADEMIC_TRACKS.map((track) => <option key={track} value={track}>{track}</option>)}
                     </select>
                   </div>
 

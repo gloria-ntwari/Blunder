@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import api from '../../services/api.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useSocket } from '../../context/SocketContext.jsx';
@@ -36,6 +37,7 @@ const DEFAULT_REACTIONS = ['👍', '❤️', '😂'];
 const EXTRA_REACTIONS = ['😍','😎','😮','😢','😡','🎉','👏','🙏','🔥','💯','🥰','🤔','🙌','💪','✅','❌','⭐','💐','🤩','🤣','😴','🤗','👀','💙','💚','🧡','🤍','💜','😇','🤝','🍾','🥳'];
 
 export default function SchulhausPage() {
+  const { t } = useTranslation();
   const { user } = useAuthStore();
   const socket = useSocket();
   const location = useLocation();
@@ -294,8 +296,8 @@ export default function SchulhausPage() {
         
         <div className="relative flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
-            <h1 className="text-[30px] font-semibold leading-[37.5px] text-[#0f172a] ">Schülerhaus</h1>
-            <p className="mt-1 text-[#64748b]">Dress codes, music picks, the playlist, and announcements for the next campus gathering.</p>
+            <h1 className="text-[30px] font-semibold leading-[37.5px] text-[#0f172a] ">{t('schulhaus.title')}</h1>
+            <p className="mt-1 text-[#64748b]">{t('schulhaus.subtitle')}</p>
           </div>
 
         </div>
@@ -303,9 +305,9 @@ export default function SchulhausPage() {
 
       <nav className="flex flex-wrap items-center gap-2" aria-label="Schülerhaus sections">
         {[
-          { key: 'announcements', label: 'Announcements' },
-          { key: 'dress-code', label: 'Dress Code' },
-          { key: 'music', label: 'Music' },
+          { key: 'announcements', label: t('schulhaus.announcementsTab') },
+          { key: 'dress-code', label: t('schulhaus.dressCodeTab') },
+          { key: 'music', label: t('schulhaus.musicTab') },
         ].map((section) => (
           <button
             key={section.key}
@@ -322,12 +324,12 @@ export default function SchulhausPage() {
         ))}
       </nav>
 
-      {loading ? <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">Loading Schülerhaus…</div> : (
+          {loading ? <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">{t('schulhaus.loading')}</div> : (
         <>
           {activeSection === 'announcements' && <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <div><h2 className="flex items-center gap-2 text-lg font-bold text-[#0f172a]">Schülerhaus announcements</h2><p className="mt-0.5 text-sm text-slate-500">The latest updates from the DJ team.</p></div>
-              {isDjTeam && <button onClick={() => openAnnouncementModal()} className="inline-flex items-center gap-2 rounded-lg bg-[#1a2b49] px-3 py-2 text-xs font-semibold text-white hover:bg-[#243d66]"><Plus className="h-4 w-4" /><span className="hidden sm:inline">Post update</span></button>}
+              <div><h2 className="flex items-center gap-2 text-lg font-bold text-[#0f172a]">{t('schulhaus.announcementsHeading')}</h2><p className="mt-0.5 text-sm text-slate-500">{t('schulhaus.announcementsIntro')}</p></div>
+              {isDjTeam && <button onClick={() => openAnnouncementModal()} className="inline-flex items-center gap-2 rounded-lg bg-[#1a2b49] px-3 py-2 text-xs font-semibold text-white hover:bg-[#243d66]"><Plus className="h-4 w-4" /><span className="hidden sm:inline">{t('schulhaus.postUpdate')}</span></button>}
             </div>
             {announcements.length ? <div className="grid gap-3 md:grid-cols-2">{announcements.map((announcement) => <article id={`schulhaus-${announcement.id}`} key={announcement.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="flex flex-col items-start gap-4 sm:flex-row"><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><p className="text-base font-bold text-[#0f172a]">{announcement.title}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{announcement.body}</p></div>{isDjTeam && <div className="flex shrink-0 items-center gap-1"><button onClick={() => openAnnouncementModal(announcement)} title="Edit announcement" className="rounded-md p-1.5 text-slate-500 hover:bg-blue-50 hover:text-[#2383c9]"><Pencil className="h-4 w-4" /></button><button onClick={() => removeAnnouncement(announcement.id)} title="Remove announcement" className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></button></div>}</div></div>{announcement.image_url && <img src={announcement.image_url} alt="" className="h-32 w-full shrink-0 rounded-lg object-cover sm:h-28 sm:w-36" />}</div>
@@ -387,7 +389,7 @@ export default function SchulhausPage() {
       )}
 
       {modal === 'dress' && <Modal onClose={closeModal} maxWidth="max-w-xl"><form onSubmit={saveDressCode} className="space-y-4 p-6">
-        <ModalHeading icon={Shirt} title={editingDressCode ? 'Edit dress code' : 'Share a dress code'} subtitle="Add a photo and a few details so everyone knows what to wear." onClose={closeModal} />
+        <ModalHeading title={t(editingDressCode ? 'schulhaus.editDressCode' : 'schulhaus.shareDressCode')} subtitle={t('schulhaus.dressModalIntro')} onClose={closeModal} />
         <label className="block text-xs font-semibold text-slate-700">Look name<input required maxLength={160} value={dressTitle} onChange={(event) => setDressTitle(event.target.value)} placeholder="e.g. Summer garden party" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
         <label className="block text-xs font-semibold text-slate-700">Details<textarea rows={3} value={dressDetails} onChange={(event) => setDressDetails(event.target.value)} placeholder="Colors, style, or anything to keep in mind…" className="mt-1.5 w-full resize-y rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
         <label className="block text-xs font-semibold text-slate-700">Wear date <span className="font-normal text-slate-400">(optional)</span><input type="date" value={wearDate} onChange={(event) => setWearDate(event.target.value)} className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
@@ -397,7 +399,7 @@ export default function SchulhausPage() {
       </form></Modal>}
 
       {modal === 'announcement' && <Modal onClose={closeModal} maxWidth="max-w-lg"><form onSubmit={saveAnnouncement} className="space-y-4 p-6">
-        <ModalHeading icon={Megaphone} title={editingAnnouncement ? 'Edit Schülerhaus update' : 'Post a Schülerhaus update'} subtitle="Share a message with everyone who can access Schülerhaus." onClose={closeModal} />
+        <ModalHeading title={t(editingAnnouncement ? 'schulhaus.editUpdate' : 'schulhaus.postUpdateTitle')} subtitle={t('schulhaus.announcementModalIntro')} onClose={closeModal} />
         <label className="block text-xs font-semibold text-slate-700">Title<input required maxLength={200} value={announcementTitle} onChange={(event) => setAnnouncementTitle(event.target.value)} placeholder="Announcement title" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
         <label className="block text-xs font-semibold text-slate-700">Message<textarea required rows={5} value={announcementBody} onChange={(event) => setAnnouncementBody(event.target.value)} placeholder="Write your update…" className="mt-1.5 w-full resize-y rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
         <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-[#2383c9]/40 bg-[#e4f2fe]/40 p-3 text-xs font-semibold text-[#1a2b49]"><ImagePlus className="h-4 w-4" /><span>{announcementImage?.name || 'Add an announcement photo (optional)'}</span><input type="file" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) { setAnnouncementImage(file); setAnnouncementRemoveImage(false); setAnnouncementPreview(URL.createObjectURL(file)); } }} /></label>
@@ -406,7 +408,7 @@ export default function SchulhausPage() {
       </form></Modal>}
 
       {modal === 'playlist-song' && <Modal onClose={closeModal} maxWidth="max-w-lg"><form onSubmit={savePlaylistSong} className="space-y-4 p-6">
-        <ModalHeading icon={ListMusic} title={editingPlaylistSong ? 'Edit playlist song' : 'Add music to the playlist'} subtitle="Students can vote for tracks on the playlist." onClose={closeModal} />
+        <ModalHeading title={t(editingPlaylistSong ? 'schulhaus.editPlaylistSong' : 'schulhaus.addMusicToPlaylist')} subtitle={t('schulhaus.playlistModalIntro')} onClose={closeModal} />
         <label className="block text-xs font-semibold text-slate-700">Music name<input required maxLength={200} value={playlistTitle} onChange={(event) => setPlaylistTitle(event.target.value)} placeholder="Song title" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
         <label className="block text-xs font-semibold text-slate-700">Artist <span className="font-normal text-slate-400">(optional)</span><input maxLength={200} value={playlistArtist} onChange={(event) => setPlaylistArtist(event.target.value)} placeholder="Artist or performer" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
         <label className="block text-xs font-semibold text-slate-700">Music link <span className="font-normal text-slate-400">(optional)</span><input type="url" value={playlistLink} onChange={(event) => setPlaylistLink(event.target.value)} placeholder="https://…" className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-[#2383c9]" /></label>
@@ -443,8 +445,8 @@ function EmptyState({ icon: Icon, title, message }) {
   return <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center"><Icon className="mx-auto mb-3 h-9 w-9 text-slate-300" /><h3 className="text-lg font-semibold text-slate-800">{title}</h3><p className="mt-1 text-sm text-slate-500">{message}</p></div>;
 }
 
-function ModalHeading({ icon: Icon, title, subtitle, onClose }) {
-  return <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4"><div className="flex gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#e4f2fe] text-[#2383c9]"><Icon className="h-5 w-5" /></div><div><h2 className="text-lg font-bold text-[#1a2b49]">{title}</h2><p className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</p></div></div><button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>;
+function ModalHeading({ title, subtitle, onClose }) {
+  return <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4"><div><h2 className="text-lg font-bold text-[#1a2b49]">{title}</h2><p className="mt-1 text-xs leading-5 text-slate-500">{subtitle}</p></div><button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>;
 }
 
 function ModalActions({ onCancel, saving, action }) {

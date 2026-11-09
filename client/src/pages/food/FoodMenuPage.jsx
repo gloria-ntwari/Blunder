@@ -193,7 +193,7 @@ export default function FoodMenuPage() {
               className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>{t('Add meal')}</span>
+              <span>{t('food.addMeal', '+ Add meal')}</span>
             </button>
           </div>
         )}

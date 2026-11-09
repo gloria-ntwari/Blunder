@@ -14,7 +14,7 @@ import { format, differenceInCalendarDays } from 'date-fns';
 
 import Modal from '../../components/layout/Modal.jsx';
 import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
-import { getClassesForTrack } from '../../utils/academicTracks';
+import { ACADEMIC_TRACKS, getClassesForTrack } from '../../utils/academicTracks';
 
 export default function DeadlinesPage() {
   const { t } = useTranslation();
@@ -277,9 +277,7 @@ export default function DeadlinesPage() {
                       }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                     >
-                      <option value="IB">IB</option>
-                      <option value="MINT">MINT</option>
-                      <option value="Abitur">Abitur</option>
+                      {ACADEMIC_TRACKS.map((track) => <option key={track} value={track}>{track}</option>)}
                     </select>
                   </div>
                   <div>

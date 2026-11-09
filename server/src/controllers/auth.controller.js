@@ -63,7 +63,7 @@ export const registerStep2 = async (req, res, next) => {
 
     if (decoded.step !== 1) return res.status(400).json({ message: 'Invalid registration token' });
 
-    const VALID_TRACKS = ['IB', 'MINT', 'Abitur'];
+    const VALID_TRACKS = ['IB', 'MINT', 'Abitur', 'Agrar'];
     if (!VALID_TRACKS.includes(academic_track))
       return res.status(400).json({ message: 'Invalid academic track' });
 

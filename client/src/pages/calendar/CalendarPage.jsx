@@ -18,7 +18,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterv
 
 import Modal from '../../components/layout/Modal.jsx';
 import ConfirmModal from '../../components/layout/ConfirmModal.jsx';
-import { getClassesForTrack } from '../../utils/academicTracks';
+import { ACADEMIC_TRACKS, getClassesForTrack } from '../../utils/academicTracks';
 
 const isEventOnDay = (event, day) => {
   const dayKey = format(day, 'yyyy-MM-dd');
@@ -198,7 +198,7 @@ export default function CalendarPage() {
             </h1>
           </div>
           <p className="text-[16px] font-normal leading-[24px] text-[#64748b] mt-0.5">
-            School trips, assemblies, IB/MINT/Abitur sessions, and mentor activities in one place.
+            School trips, assemblies, IB/MINT/Abitur/Agrar sessions, and mentor activities in one place.
           </p>
         </div>
 
@@ -208,7 +208,7 @@ export default function CalendarPage() {
             className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>{t('Add event')}</span>
+            <span>{t('calendar.addEvent', '+ Add event')}</span>
           </button>
         )}
       </div>
@@ -464,9 +464,7 @@ export default function CalendarPage() {
                       }}
                       className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]"
                     >
-                      <option value="IB">IB</option>
-                      <option value="MINT">MINT</option>
-                      <option value="Abitur">Abitur</option>
+                      {ACADEMIC_TRACKS.map((track) => <option key={track} value={track}>{track}</option>)}
                     </select>
                   </div>
 

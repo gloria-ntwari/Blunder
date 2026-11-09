@@ -163,24 +163,24 @@ export default function Sidebar({ isOpen = false, onClose = () => {}, collapsed 
           </NavLink>
 
           {['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'super_admin'].includes(role) && (
-            <NavLink to="/guilds" onClick={onClose} title="Guilds" className={({ isActive }) => navLinkClass(isActive)}>
+            <NavLink to="/guilds" onClick={onClose} title={t('nav.guilds', 'Guilds')} className={({ isActive }) => navLinkClass(isActive)}>
               {({ isActive }) => (
                 <>
                   {isActive && indicator}
                   <Shield className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                  <span className={collapsed ? 'lg:hidden' : ''}>Guilds</span>
+                  <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.guilds', 'Guilds')}</span>
                 </>
               )}
             </NavLink>
           )}
 
           {role !== 'teacher' && (
-            <NavLink to="/schuelerhaus" onClick={onClose} title="Schülerhaus" className={({ isActive }) => navLinkClass(isActive)}>
+            <NavLink to="/schuelerhaus" onClick={onClose} title={t('schulhaus.title', 'Schülerhaus')} className={({ isActive }) => navLinkClass(isActive)}>
               {({ isActive }) => (
                 <>
                   {isActive && indicator}
                   <Music2 className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                  <span className={collapsed ? 'lg:hidden' : ''}>Schülerhaus</span>
+                  <span className={collapsed ? 'lg:hidden' : ''}>{t('schulhaus.title', 'Schülerhaus')}</span>
                 </>
               )}
             </NavLink>
@@ -189,21 +189,21 @@ export default function Sidebar({ isOpen = false, onClose = () => {}, collapsed 
           {/* User Management — super_admin only */}
           {showUserMgmt && (
             <div className="pt-0.5 gap-y-1 flex flex-col">
-              <NavLink to="/admin/users" onClick={onClose} title="User Management" className={() => navLinkClass(userManagementActive)}>
+              <NavLink to="/admin/users" onClick={onClose} title={t('nav.userManagement', 'User Management')} className={() => navLinkClass(userManagementActive)}>
                 {() => (
                   <>
                     {userManagementActive && indicator}
                     <Users className={`w-4 h-4 shrink-0 ${userManagementActive ? 'text-white' : 'text-slate-500'}`} />
-                    <span className={collapsed ? 'lg:hidden' : ''}>User Management</span>
+                    <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.userManagement', 'User Management')}</span>
                   </>
                 )}
               </NavLink>
-              <NavLink to="/admin/users?section=mentor-groups" onClick={onClose} title="Mentor Groups" className={() => navLinkClass(mentorGroupsActive)}>
+              <NavLink to="/admin/users?section=mentor-groups" onClick={onClose} title={t('nav.mentorGroups', 'Mentor Groups')} className={() => navLinkClass(mentorGroupsActive)}>
                 {() => (
                   <>
                     {mentorGroupsActive && indicator}
                     <UsersRound className={`w-4 h-4 shrink-0 ${mentorGroupsActive ? 'text-white' : 'text-slate-500'}`} />
-                    <span className={collapsed ? 'lg:hidden' : ''}>Mentor Groups</span>
+                    <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.mentorGroups', 'Mentor Groups')}</span>
                   </>
                 )}
               </NavLink>
@@ -216,19 +216,19 @@ export default function Sidebar({ isOpen = false, onClose = () => {}, collapsed 
 
       {/* Footer */}
       <div className={`p-3 border-t border-slate-100 space-y-1 ${collapsed ? 'lg:px-2' : ''}`}>
-        <NavLink to="/profile" onClick={onClose} title="Settings" className={({ isActive }) =>
+        <NavLink to="/profile" onClick={onClose} title={t('nav.settings', 'Settings')} className={({ isActive }) =>
           `flex items-center gap-3 ${collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : 'px-3.5'} py-2.5 rounded-lg text-[16px] font-medium leading-[24px] transition-colors ${
             isActive ? 'bg-slate-100 text-[#0f172a]' : 'text-[rgb(52,58,64)] hover:bg-slate-50'
           }`
         }>
           <Settings className="w-4 h-4 text-slate-500 shrink-0" />
-          <span className={collapsed ? 'lg:hidden' : ''}>Settings</span>
+          <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.settings', 'Settings')}</span>
         </NavLink>
 
-        <button onClick={handleLogout} title="Sign Out"
+        <button onClick={handleLogout} title={t('nav.signOut', 'Sign Out')}
           className={`w-full flex items-center gap-3 ${collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : 'px-3.5'} py-2.5 rounded-lg text-[16px] font-medium leading-[24px] text-[rgb(52,58,64)] hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer text-left`}>
           <LogOut className="w-4 h-4 text-slate-500 shrink-0" />
-          <span className={collapsed ? 'lg:hidden' : ''}>Sign Out</span>
+          <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.signOut', 'Sign Out')}</span>
         </button>
       </div>
       </aside>

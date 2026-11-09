@@ -65,7 +65,7 @@ function AppInner() {
       {/* Public auth routes */}
       <Route path="/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to="/dashboard" replace />} />
       <Route path="/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to="/dashboard" replace />} />
-      <Route path="/verify-otp" element={<OtpVerifyPage />} />
+      <Route path="OtpVerifyPage" element={<OtpVerifyPage />} />
       <Route path="/set-password" element={<SetPasswordPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 

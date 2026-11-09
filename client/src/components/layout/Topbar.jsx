@@ -52,7 +52,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
     if ('Notification' in window && Notification.permission !== 'granted') {
       try {
         await enablePushNotifications({ requestPermission: true });
-        toast.success('Phone notifications enabled');
+        toast.success(t('topbar.phoneNotificationsEnabled', 'Phone notifications enabled'));
       } catch (err) {
         toast.error(err.message);
       }
@@ -84,7 +84,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
     <header className="h-14 bg-white border border-slate-200/60 px-3 sm:px-4 flex items-center justify-between gap-2 shrink-0 relative z-20 font-['Outfit'] rounded-lg">
       {/* Brand + Search grouped together on the left */}
       <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-        <button type="button" onClick={onMenuClick} aria-label="Open navigation" className="p-2 -ml-1 rounded-lg text-slate-600 hover:bg-slate-100 lg:hidden shrink-0">
+        <button type="button" onClick={onMenuClick} aria-label={t('topbar.openNavigation', 'Open navigation')} className="p-2 -ml-1 rounded-lg text-slate-600 hover:bg-slate-100 lg:hidden shrink-0">
           <Menu className="w-5 h-5" />
         </button>
         {/* B- Lunder brand */}
@@ -121,7 +121,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
           <button
             onClick={() => setShowLangMenu(!showLangMenu)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
-            title="Switch Language"
+            title={t('topbar.switchLanguage', 'Switch language')}
           >
             <Globe className="w-4 h-4 text-slate-500" />
             <span className="uppercase hidden sm:inline">{i18n.language?.substring(0, 2) || 'EN'}</span>
@@ -157,7 +157,7 @@ export default function Topbar({ onMenuClick = () => {} }) {
           <button
             onClick={handleNotificationClick}
             className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:rounded-full hover:bg-slate-100 transition-all relative cursor-pointer"
-            title="Notifications"
+            title={t('topbar.notifications', 'Notifications')}
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (

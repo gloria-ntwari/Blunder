@@ -8,7 +8,7 @@ import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { getClassesForTrack } from '../../utils/academicTracks';
+import { ACADEMIC_TRACKS, getClassesForTrack } from '../../utils/academicTracks';
 
 export default function ProfilePage() {
   const { t } = useTranslation();
@@ -179,7 +179,7 @@ export default function ProfilePage() {
                 <select value={academicTrack} onChange={(e) => { setAcademicTrack(e.target.value); setClassYear(''); setMentorGroupId(''); }}
                   className="w-full bg-[#f8fafb] text-xs text-[#0f172a] px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]">
                   <option value="">Not assigned</option>
-                  {['IB', 'MINT', 'Abitur'].map((track) => <option key={track} value={track}>{track}</option>)}
+                  {ACADEMIC_TRACKS.map((track) => <option key={track} value={track}>{track}</option>)}
                 </select>
               </div>
               <div>

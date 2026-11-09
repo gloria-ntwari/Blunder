@@ -1,4 +1,4 @@
-export const ACADEMIC_TRACKS = ['IB', 'MINT', 'Abitur'];
+export const ACADEMIC_TRACKS = ['IB', 'MINT', 'Abitur', 'Agrar'];
 
 export const TRACK_CLASSES = {
   IB: [
@@ -29,6 +29,11 @@ export const TRACK_CLASSES = {
     { value: 'EF', label: 'Einführungsphase (EF) – Year 10' },
     { value: 'Q1', label: 'Qualifikationsphase Q1 – Year 11' },
     { value: 'Q2', label: 'Qualifikationsphase Q2 – Year 12' },
+  ],
+  Agrar: [
+    { value: 'EF', label: 'EF' },
+    { value: 'Q1', label: 'Q1' },
+    { value: 'Q2', label: 'Q2' },
   ],
 };
 

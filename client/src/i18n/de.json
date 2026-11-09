@@ -77,6 +77,11 @@
     "users": "Benutzer",
     "adminPanel": "Admin-Bereich",
     "profile": "Mein Profil & Gruppen",
+    "guilds": "Gruppen",
+    "userManagement": "Benutzerverwaltung",
+    "mentorGroups": "Mentorengruppen",
+    "settings": "Einstellungen",
+    "signOut": "Abmelden",
     "betterTogether": "Gemeinsam besser.",
     "betterTogetherSub": "Ein Ort für alles. Eine Gemeinschaft für alle."
   },
@@ -215,6 +220,34 @@
   "tracks": {
     "IB": "IB",
     "MINT": "MINT",
-    "Abitur": "Abitur"
+    "Abitur": "Abitur",
+    "Agrar": "Agrar"
+  },
+  "schulhaus": {
+    "title": "Schülerhaus",
+    "subtitle": "Outfit-Ideen, Musikwünsche, die Playlist und Neuigkeiten für das nächste Campus-Treffen.",
+    "announcementsTab": "Ankündigungen",
+    "dressCodeTab": "Kleiderordnung",
+    "musicTab": "Musik",
+    "loading": "Schülerhaus wird geladen…",
+    "announcementsHeading": "Neuigkeiten aus dem Schülerhaus",
+    "announcementsIntro": "Die neuesten Neuigkeiten vom DJ-Team.",
+    "postUpdate": "Neuigkeit veröffentlichen",
+    "editDressCode": "Kleiderordnung bearbeiten",
+    "shareDressCode": "Kleiderordnung teilen",
+    "dressModalIntro": "Füge ein Foto und ein paar Details hinzu, damit alle wissen, was sie anziehen sollen.",
+    "editUpdate": "Schülerhaus-Neuigkeit bearbeiten",
+    "postUpdateTitle": "Neuigkeit im Schülerhaus veröffentlichen",
+    "announcementModalIntro": "Teile eine Nachricht mit allen, die Zugriff auf das Schülerhaus haben.",
+    "editPlaylistSong": "Lied in der Playlist bearbeiten",
+    "addMusicToPlaylist": "Musik zur Playlist hinzufügen",
+    "playlistModalIntro": "Schülerinnen und Schüler können für Titel in der Playlist abstimmen."
+  },
+  "topbar": {
+    "switchLanguage": "Sprache wechseln",
+    "openNavigation": "Navigation öffnen",
+    "notifications": "Benachrichtigungen",
+    "phoneNotificationsEnabled": "Handy-Benachrichtigungen aktiviert",
+    "student": "Schüler/in"
   }
 }

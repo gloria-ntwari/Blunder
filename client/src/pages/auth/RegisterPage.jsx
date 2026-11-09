@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Globe, ArrowRight, CheckCircle2, User, BookOpen, Eye, EyeOff } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
-import { getClassesForTrack } from '../../utils/academicTracks';
+import { ACADEMIC_TRACKS, getClassesForTrack } from '../../utils/academicTracks';
 
 const validatePassword = (pw) => {
   if (pw.length < 8) return 'Password must be at least 8 characters';
@@ -203,8 +203,8 @@ export default function RegisterPage() {
               <form onSubmit={handleStep2Submit} className="space-y-4">
                 <div>
                   <label className="block text-[16px] font-semibold text-gray-700 mb-2">{t('auth.academicTrack', '1. Academic Track')}</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['IB', 'MINT', 'Abitur'].map((track) => (
+                  <div className="grid grid-cols-4 gap-2">
+                    {ACADEMIC_TRACKS.map((track) => (
                       <button key={track} type="button" onClick={() => setAcademicTrack(track)}
                         className={`py-2.5 px-3 rounded-lg text-xs font-semibold border transition-all ${academicTrack === track ? 'bg-[#1a2b49] text-white border-[#1a2b49] shadow-xs' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'}`}>
                         {track}
