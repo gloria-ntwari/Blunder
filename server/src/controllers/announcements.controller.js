@@ -107,7 +107,13 @@ export const reactToAnnouncement = async (req, res, next) => {
     const reaction_counts = { '👍': 0, '❤️': 0, '😂': 0 };
     countsResult.rows.forEach(({ reaction: key, count }) => { reaction_counts[key] = count; });
     const active = !current.rows.length;
-    const update = { announcement_id: req.params.id, reaction_counts };
+    const update = {
+      announcement_id: req.params.id,
+      reaction_counts,
+      user_id: req.user.id,
+      reaction,
+      active,
+    };
     emitAnnouncementReaction(req.app.get('io'), exists.rows[0], update);
     res.json({ active, reaction_counts });
   } catch (err) { next(err); }

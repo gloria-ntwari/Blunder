@@ -125,9 +125,16 @@ export default function AnnouncementsPage() {
     const handleDataChanged = (event) => {
       if (event.detail?.entity === 'announcement') fetchAnnouncements();
     };
-    const handleReactionChanged = ({ announcement_id, reaction_counts }) => {
-      setAnnouncements((current) => current.map((item) => item.id === announcement_id
-        ? { ...item, reaction_counts } : item));
+    const handleReactionChanged = ({ announcement_id, reaction_counts, user_id, reaction, active }) => {
+      setAnnouncements((current) => current.map((item) => {
+        if (item.id !== announcement_id) return item;
+        const userReactions = item.user_reactions || [];
+        const isCurrentUser = user_id === user?.id;
+        const nextUserReactions = isCurrentUser
+          ? active ? [...new Set([...userReactions, reaction])] : userReactions.filter((value) => value !== reaction)
+          : userReactions;
+        return { ...item, reaction_counts, user_reactions: nextUserReactions };
+      }));
     };
     window.addEventListener('blunder:data-changed', handleDataChanged);
     socket.on('announcement_reaction_changed', handleReactionChanged);
@@ -135,7 +142,7 @@ export default function AnnouncementsPage() {
       window.removeEventListener('blunder:data-changed', handleDataChanged);
       socket.off('announcement_reaction_changed', handleReactionChanged);
     };
-  }, [socket]);
+  }, [socket, user?.id]);
 
   const fetchAnnouncements = async () => {
     setLoading(true);
