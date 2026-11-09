@@ -116,7 +116,7 @@ export default function OtpVerifyPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@louisenlund.de"
-                className="w-full h-[60px] bg-white text-[15px] text-gray-800 px-4 py-3 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]"
+                className="w-full h-[46px] bg-white text-[14px] text-gray-800 px-4 py-3 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]"
               />
             </div>
 
@@ -129,7 +129,7 @@ export default function OtpVerifyPage() {
                 value={code}
                 onChange={(e) => setCode(e.target.value.trim())}
                 placeholder="123456"
-                className="w-full h-[60px] bg-white text-center tracking-widest text-lg font-bold text-[#1a1a2e] px-4 py-3 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5] placeholder:text-base placeholder:font-normal placeholder:tracking-normal"
+                className="w-full h-[46px] bg-white text-center tracking-widest text-[14px] font-bold text-[#1a1a2e] px-4 py-3 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5] placeholder:text-[14px] placeholder:font-normal placeholder:tracking-normal"
               />
             </div>
 

@@ -105,7 +105,7 @@ export default function SetPasswordPage() {
                   type={showPassword ? 'text' : 'password'}
                   required value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="Min 8 chars, letters & numbers"
-                  className="w-full h-[60px] bg-white text-[15px] text-gray-800 px-4 py-3 pr-10 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]"
+                  className="w-full h-[46px] bg-white text-[14px] text-gray-800 px-4 py-3 pr-10 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]"
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -121,7 +121,7 @@ export default function SetPasswordPage() {
                   type={showConfirm ? 'text' : 'password'}
                   required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Repeat your password"
-                  className="w-full h-[60px] bg-white text-[15px] text-gray-800 px-4 py-3 pr-10 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]"
+                  className="w-full h-[46px] bg-white text-[14px] text-gray-800 px-4 py-3 pr-10 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]"
                 />
                 <button type="button" onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
