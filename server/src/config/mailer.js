@@ -80,4 +80,22 @@ export const sendPasswordResetEmail = async (email, otpCode) => {
   });
 };
 
+/** Send an email verification code to a newly registered account. */
+export const sendVerificationEmail = async (email, otpCode) => {
+  await sendEmail({
+    to: email,
+    subject: 'Verify your B- Lunder email',
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: auto; padding: 32px; background: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0;">
+        <h2 style="color: #1a2b49; margin-top: 0;">Verify your email</h2>
+        <p style="color: #1a1a2e; line-height: 1.5;">Enter this code to finish creating your B- Lunder account:</p>
+        <div style="font-size: 36px; font-weight: 700; letter-spacing: 10px; color: #1a2b49; padding: 16px 0;">${otpCode}</div>
+        <p style="color: #64748b; font-size: 13px;">This code expires in <strong>15 minutes</strong>. If you did not create this account, you can ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #e4f2fe; margin: 24px 0;" />
+        <p style="color: #94a3b8; font-size: 11px; margin: 0;">B- Lunder — The Louisenlund Community</p>
+      </div>
+    `,
+  });
+};
+
 export default resend;

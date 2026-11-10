@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Globe, ArrowRight, CheckCircle2, User, BookOpen, Eye, EyeOff } from 'lucide-react';
+import { Globe, ArrowRight, CheckCircle2, User, BookOpen, Eye, EyeOff, Mail } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { ACADEMIC_TRACKS, getClassesForTrack } from '../../utils/academicTracks';
@@ -12,6 +12,7 @@ const validatePassword = (pw) => {
   if (!/[0-9]/.test(pw)) return 'Password must contain at least one number';
   return null;
 };
+const isAllowedEmail = (value) => /^[^\s@]+@(?:mail\.)?louisenlund\.de$/i.test(value.trim());
 
 export default function RegisterPage() {
   const { t, i18n } = useTranslation();
@@ -26,6 +27,19 @@ export default function RegisterPage() {
   const [role, setRole] = useState('student');
   const [showPassword, setShowPassword] = useState(false);
   const [tempToken, setTempToken] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [verificationPending, setVerificationPending] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const verifyEmail = params.get('verifyEmail');
+    if (verifyEmail) {
+      setVerificationEmail(verifyEmail);
+      setVerificationPending(true);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const [academicTrack, setAcademicTrack] = useState('IB');
   const [classYear, setClassYear] = useState('DP1');
@@ -67,6 +81,10 @@ export default function RegisterPage() {
 
   const handleStep1Submit = async (e) => {
     e.preventDefault();
+    if (!isAllowedEmail(email)) {
+      toast.error('Use your @louisenlund.de or @mail.louisenlund.de email address.');
+      return;
+    }
     const err = validatePassword(password);
     if (err) { toast.error(err); return; }
     setLoading(true);
@@ -92,10 +110,40 @@ export default function RegisterPage() {
         class_year: classYear,
         mentor_group_id: mentorId || null
       });
-      toast.success('Registration complete! You can now sign in.');
-      navigate('/login', { replace: true });
+      setVerificationEmail(res.data.email || email.trim().toLowerCase());
+      setVerificationPending(true);
+      toast.success(res.data.message || 'Check your email for a verification code.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not complete registration.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyEmail = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/register/verify-email', {
+        email: verificationEmail.trim().toLowerCase(),
+        code: verificationCode.trim(),
+      });
+      toast.success(res.data.message || 'Email verified. You can now sign in.');
+      navigate('/login', { replace: true });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not verify this code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/register/resend-verification', { email: verificationEmail.trim().toLowerCase() });
+      toast.success(res.data.message || 'A new code has been sent.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not resend the code.');
     } finally {
       setLoading(false);
     }
@@ -126,7 +174,7 @@ export default function RegisterPage() {
               <span>1</span><span>Account</span>
             </div>
             <div className="w-6 h-0.5 bg-white/30" />
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${step === 2 ? 'bg-white text-[#1a1a2e]' : 'bg-white/20 text-white'}`}>
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${step === 2 && !verificationPending ? 'bg-white text-[#1a1a2e]' : 'bg-white/20 text-white'}`}>
               <span>2</span><span>Academics</span>
             </div>
           </div>
@@ -142,8 +190,27 @@ export default function RegisterPage() {
 
       {/* ── Right Form Panel ── */}
       <div className="flex-1 flex flex-col justify-center items-center p-6 md:p-14 bg-[#f8fafb]">
-        <div className="w-full max-w-md bg-white rounded-lg shadow-sm p-10 md:p-14 space-y-8 animate-fade-in">
-          {step === 1 ? (
+        <div className="w-full max-w-md bg-white rounded-lg shadow-sm p-10 md:p-10 space-y-8 animate-fade-in">
+          {verificationPending ? (
+            <>
+              <div>
+                <div className="w-12 h-12 rounded-2xl bg-[#e4f2fe] text-[#2383c9] flex items-center justify-center mb-5"><Mail className="w-6 h-6" /></div>
+                <h2 className="text-2xl md:text-3xl font-bold text-[#1a1a2e] tracking-tight">Verify your email</h2>
+                <p className="mt-1.5 text-[16px] text-gray-500">We sent a 6-digit code to <span className="font-semibold text-[#1a2b49]">{verificationEmail}</span>. Enter it below to activate your account.</p>
+              </div>
+              <form onSubmit={handleVerifyEmail} className="space-y-4">
+                <div>
+                  <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">6-digit verification code</label>
+                  <input type="text" inputMode="numeric" autoComplete="one-time-code" required maxLength={6} pattern="[0-9]{6}" value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="123456"
+                    className="w-full h-[46px] bg-white text-center tracking-widest text-[14px] font-bold text-[#1a1a2e] px-4 py-3 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]" />
+                </div>
+                <button type="submit" disabled={loading || verificationCode.length !== 6} className="w-full mt-2 py-3.5 px-4 bg-[#1a2b49] hover:bg-[#14223b] text-white font-semibold text-[15px] rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer">
+                  {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <>Verify email <ArrowRight className="w-4 h-4" /></>}
+                </button>
+              </form>
+              <p className="text-center text-[15px] text-gray-500">Didn’t receive the email? <button type="button" disabled={loading} onClick={handleResendCode} className="text-[#1a1a2e] font-semibold hover:underline disabled:opacity-50">Resend code</button></p>
+            </>
+          ) : step === 1 ? (
             <>
               <div>
                 <h2 className="text-2xl md:text-3xl font-semibold text-[#1a1a2e] tracking-tight">{t('auth.step1Title', 'Create your account')}</h2>
@@ -161,19 +228,21 @@ export default function RegisterPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">{t('auth.fullName', 'Full name')}</label>
+                  <label className="block text-[16px] font-medium text-[#667f9f] mb-1.5">{t('auth.fullName', 'Full name')}</label>
                   <input type="text" required value={fullName} onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Alex Linden"
                     className="w-full h-[46px] bg-white text-[14px] text-gray-800 px-4 py-3 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]" />
                 </div>
                 <div>
-                  <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">{t('auth.email', 'Email address')}</label>
+                  <label className="block text-[16px] font-medium text-[#667f9f]  mb-1.5">{t('auth.email', 'Email address')}</label>
                   <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@louisenlund.de or you@gmail.com"
+                    placeholder="you@louisenlund.de or you@mail.louisenlund.de"
+                    pattern="[^\s@]+@(?:mail\.)?louisenlund\.de"
+                    title="Use an @louisenlund.de or @mail.louisenlund.de email address."
                     className="w-full h-[46px] bg-white text-[14px] text-gray-800 px-4 py-3 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]" />
                 </div>
                 <div>
-                  <label className="block text-[16px] font-semibold text-gray-700 mb-1.5">{t('auth.password', 'Password')}</label>
+                  <label className="block text-[16px] font-medium text-[#667f9f]  mb-1.5">{t('auth.password', 'Password')}</label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
@@ -186,7 +255,7 @@ export default function RegisterPage() {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <p className="text-[12px] text-[#64748b] mt-1">Must be 8+ characters with at least one letter and one number.</p>
+                  
                 </div>
                 <button type="submit" disabled={loading}
                   className="w-full mt-2 py-3.5 px-4 bg-[#1a2b49] hover:bg-[#14223b] text-white font-semibold text-[15px] rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer">

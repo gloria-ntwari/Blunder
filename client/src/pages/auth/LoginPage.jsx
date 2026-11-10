@@ -121,7 +121,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@louisenlund.de"
+                placeholder="you@louisenlund.de or you@mail.louisenlund.de"
                 className="auth-input w-full bg-white text-[14px] text-gray-800 pl-12 pr-4 py-3 rounded-lg border border-[#dce4ef] shadow-[0_2px_5px_rgba(26,43,73,0.10)] focus:bg-white focus:border-[#9aabc2] focus:outline-hidden transition-all placeholder:text-[#c5d3e5]"
               />
               </div>

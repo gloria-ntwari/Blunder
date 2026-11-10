@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { query } from '../config/db.js';
-import { sendInviteEmail, sendPasswordResetEmail } from '../config/mailer.js';
+import { sendInviteEmail, sendPasswordResetEmail, sendVerificationEmail } from '../config/mailer.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const generateOtp = () => crypto.randomInt(100000, 999999).toString();
@@ -27,6 +27,9 @@ export const registerStep1 = async (req, res, next) => {
       return res.status(400).json({ message: 'You may register only as a student or teacher' });
 
     const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@(?:mail\.)?louisenlund\.de$/.test(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please register with an @louisenlund.de or @mail.louisenlund.de email address.' });
+    }
     const exists = await query('SELECT id FROM users WHERE LOWER(email) = $1', [normalizedEmail]);
     if (exists.rows.length)
       return res.status(409).json({ message: 'Email already registered' });
@@ -34,13 +37,13 @@ export const registerStep1 = async (req, res, next) => {
     const hash = await bcrypt.hash(password, 12);
 
     const result = await query(
-      `INSERT INTO users (full_name, email, password_hash, role)
-       VALUES ($1, $2, $3, $4) RETURNING id`,
+      `INSERT INTO users (full_name, email, password_hash, role, is_active)
+       VALUES ($1, $2, $3, $4, FALSE) RETURNING id`,
       [full_name.trim(), normalizedEmail, hash, role]
     );
 
     const userId = result.rows[0].id;
-    // Short-lived token just to complete the academic-details step.
+    // Keep pending registrations out of the login flow until email verification.
     const tempToken = jwt.sign({ userId, role, step: 1 }, process.env.JWT_SECRET, { expiresIn: '30m' });
     res.status(201).json({ tempToken, role, message: 'Account created. Complete your academic details.' });
   } catch (err) { next(err); }
@@ -70,14 +73,30 @@ export const registerStep2 = async (req, res, next) => {
     const role = decoded.role || 'student';
     const isTeacher = role === 'teacher';
 
-    await query(
+    const updated = await query(
       `UPDATE users SET academic_track = $1, class_year = $2, mentor_group_id = $3,
        updated_at = NOW()
-       WHERE id = $4`,
+       WHERE id = $4 AND is_active = FALSE RETURNING id, email`,
       [academic_track, isTeacher ? null : class_year, isTeacher ? null : (mentor_group_id || null), decoded.userId]
     );
 
-    res.json({ message: `${isTeacher ? 'Teacher' : 'Student'} details saved. You can now sign in.` });
+    if (!updated.rows.length) return res.status(400).json({ message: 'Registration could not be completed. Please start again.' });
+
+    const email = updated.rows[0].email;
+    const code = generateOtp();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    await query(`UPDATE otps SET used = TRUE WHERE LOWER(email) = $1 AND purpose = 'verify_email' AND used = FALSE`, [email]);
+    await query(
+      `INSERT INTO otps (email, code, purpose, expires_at, used) VALUES ($1, $2, 'verify_email', $3, FALSE)`,
+      [email, code, expiresAt]
+    );
+    try {
+      await sendVerificationEmail(email, code);
+    } catch (mailErr) {
+      console.error('[Verification email error]', mailErr.message);
+      return res.status(503).json({ message: 'Your details were saved, but we could not send the verification email. Use resend code to try again.', email });
+    }
+    res.json({ message: 'Details saved. Check your email for a verification code.', email });
   } catch (err) { next(err); }
 };
 
@@ -90,7 +109,7 @@ export const login = async (req, res, next) => {
 
     const normalizedEmail = email.trim().toLowerCase();
     const result = await query(
-      'SELECT * FROM users WHERE LOWER(email) = $1 AND is_active = TRUE',
+      'SELECT * FROM users WHERE LOWER(email) = $1',
       [normalizedEmail]
     );
     const user = result.rows[0];
@@ -102,6 +121,10 @@ export const login = async (req, res, next) => {
       return res.status(403).json({
         message: 'Your account was invited, but your password is not set yet. Please check your invitation email to set your password, or use "Forgot password".'
       });
+    }
+
+    if (!user.is_active) {
+      return res.status(403).json({ message: 'Please verify your email before signing in. Use the resend option on the verification page.' });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
@@ -117,6 +140,64 @@ export const login = async (req, res, next) => {
 
     const { password_hash, ...safeUser } = user;
     res.json({ accessToken, refreshToken, user: safeUser });
+  } catch (err) { next(err); }
+};
+
+// Verify a self-registered account's email address.
+export const verifyRegistrationEmail = async (req, res, next) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase();
+    const code = req.body.code?.trim();
+    if (!email || !code) return res.status(400).json({ message: 'Email and verification code are required' });
+
+    const result = await query(
+      `SELECT id FROM otps WHERE LOWER(email) = $1 AND code = $2 AND purpose = 'verify_email' AND used = FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1`,
+      [email, code]
+    );
+    if (!result.rows.length) return res.status(400).json({ message: 'Invalid or expired verification code' });
+
+    await query('UPDATE otps SET used = TRUE WHERE id = $1', [result.rows[0].id]);
+    const activated = await query(
+      `UPDATE users SET is_active = TRUE, updated_at = NOW() WHERE LOWER(email) = $1 AND password_hash IS NOT NULL RETURNING id`,
+      [email]
+    );
+    if (!activated.rows.length) return res.status(400).json({ message: 'This registration cannot be verified' });
+    res.json({ message: 'Email verified. You can now sign in.' });
+  } catch (err) { next(err); }
+};
+
+export const resendRegistrationVerification = async (req, res, next) => {
+  try {
+    const email = req.body.email?.trim().toLowerCase();
+    if (!email) return res.status(400).json({ message: 'Email is required' });
+    const user = await query('SELECT id, is_active FROM users WHERE LOWER(email) = $1 AND password_hash IS NOT NULL', [email]);
+    if (!user.rows.length || user.rows[0].is_active) {
+      return res.json({ message: 'If the account needs verification, a new code has been sent.' });
+    }
+
+    const recent = await query(
+      `SELECT id FROM otps WHERE LOWER(email) = $1 AND purpose = 'verify_email' AND created_at > NOW() - INTERVAL '60 seconds' LIMIT 1`,
+      [email]
+    );
+    if (recent.rows.length) {
+      const latest = await query(
+        `SELECT id FROM otps WHERE LOWER(email) = $1 AND purpose = 'verify_email' AND used = FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1`,
+        [email]
+      );
+      if (latest.rows.length) return res.status(429).json({ message: 'Please wait a minute before requesting another code.' });
+    }
+
+    const code = generateOtp();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    await query(`UPDATE otps SET used = TRUE WHERE LOWER(email) = $1 AND purpose = 'verify_email' AND used = FALSE`, [email]);
+    await query(`INSERT INTO otps (email, code, purpose, expires_at, used) VALUES ($1, $2, 'verify_email', $3, FALSE)`, [email, code, expiresAt]);
+    try {
+      await sendVerificationEmail(email, code);
+    } catch (mailErr) {
+      console.error('[Verification email error]', mailErr.message);
+      return res.status(503).json({ message: 'We could not send the verification email. Please try again shortly.' });
+    }
+    res.json({ message: 'A new verification code has been sent.' });
   } catch (err) { next(err); }
 };
 

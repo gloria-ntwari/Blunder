@@ -30,7 +30,7 @@
     "loginTitle": "Welcome back",
     "loginSubtitle": "A new day, new possibilities. Let's get you signed in.",
     "email": "Email address",
-    "emailPlaceholder": "you@louisenlund.de",
+    "emailPlaceholder": "you@louisenlund.de or you@mail.louisenlund.de",
     "password": "Password",
     "passwordPlaceholder": "At least 8 characters",
     "forgotPassword": "Forgot password?",
