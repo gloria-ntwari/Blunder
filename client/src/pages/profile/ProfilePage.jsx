@@ -8,7 +8,6 @@ import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { ACADEMIC_TRACKS, getClassesForTrack } from '../../utils/academicTracks';
 
 export default function ProfilePage() {
   const { t } = useTranslation();
@@ -17,38 +16,9 @@ export default function ProfilePage() {
 
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [email, setEmail] = useState(user?.email || '');
-  const [academicTrack, setAcademicTrack] = useState(user?.academic_track || '');
-  const [classYear, setClassYear] = useState(user?.class_year || '');
-  const [mentorGroupId, setMentorGroupId] = useState(user?.mentor_group_id || '');
-  const [mentorGroups, setMentorGroups] = useState([]);
-  const [loadingGroups, setLoadingGroups] = useState(false);
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar_url || '');
   const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    const loadGroups = async () => {
-      if (!academicTrack) {
-        setMentorGroups([]);
-        return;
-      }
-      setLoadingGroups(true);
-      try {
-        const query = classYear
-          ? `?academic_track=${encodeURIComponent(academicTrack)}&class_year=${encodeURIComponent(classYear)}`
-          : `?academic_track=${encodeURIComponent(academicTrack)}`;
-        const res = await api.get(`/mentor-groups${query}`);
-        if (active) setMentorGroups(res.data || []);
-      } catch {
-        if (active) setMentorGroups([]);
-      } finally {
-        if (active) setLoadingGroups(false);
-      }
-    };
-    loadGroups();
-    return () => { active = false; };
-  }, [academicTrack, classYear]);
 
   const handleAvatarChange = (e) => {
     if (e.target.files?.[0]) {
@@ -64,9 +34,6 @@ export default function ProfilePage() {
     const formData = new FormData();
     formData.append('full_name', fullName);
     formData.append('email', email);
-    formData.append('academic_track', academicTrack);
-    formData.append('class_year', classYear);
-    formData.append('mentor_group_id', mentorGroupId);
     if (avatarFile) formData.append('avatar', avatarFile);
     try {
       const { data } = await api.put('/users/me', formData);
@@ -176,27 +143,18 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div>
                 <label className="block text-xs font-semibold text-[#0f172a] mb-1">Academic Track</label>
-                <select value={academicTrack} onChange={(e) => { setAcademicTrack(e.target.value); setClassYear(''); setMentorGroupId(''); }}
-                  className="w-full bg-[#f8fafb] text-xs text-[#0f172a] px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]">
-                  <option value="">Not assigned</option>
-                  {ACADEMIC_TRACKS.map((track) => <option key={track} value={track}>{track}</option>)}
-                </select>
+                <input readOnly value={user?.academic_track || 'Not assigned'} aria-readonly="true"
+                  className="w-full bg-slate-100 text-xs text-slate-600 px-3.5 py-2.5 rounded-lg border border-slate-200 cursor-not-allowed" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-[#0f172a] mb-1">Class / Year</label>
-                <select value={classYear} onChange={(e) => { setClassYear(e.target.value); setMentorGroupId(''); }} disabled={!academicTrack}
-                  className="w-full bg-[#f8fafb] text-xs text-[#0f172a] px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9] disabled:opacity-50">
-                  <option value="">Not assigned</option>
-                  {getClassesForTrack(academicTrack).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
+                <input readOnly value={user?.class_year || 'Not assigned'} aria-readonly="true"
+                  className="w-full bg-slate-100 text-xs text-slate-600 px-3.5 py-2.5 rounded-lg border border-slate-200 cursor-not-allowed" />
               </div>
               <div className="col-span-2">
                 <label className="block text-xs font-semibold text-[#0f172a] mb-1">Mentor Group</label>
-                <select value={mentorGroupId} onChange={(e) => setMentorGroupId(e.target.value)} disabled={!academicTrack || loadingGroups}
-                  className="w-full bg-[#f8fafb] text-xs text-[#0f172a] px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9] disabled:opacity-50">
-                  <option value="">No mentor group assigned</option>
-                  {mentorGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
-                </select>
+                <input readOnly value={user?.mentor_group_name || 'No mentor group assigned'} aria-readonly="true"
+                  className="w-full bg-slate-100 text-xs text-slate-600 px-3.5 py-2.5 rounded-lg border border-slate-200 cursor-not-allowed" />
               </div>
             </div>
 

@@ -7,3 +7,6 @@ ALTER TABLE otps DROP CONSTRAINT IF EXISTS otps_purpose_check;
 -- created inactive by the registration endpoint until their email is verified.
 CREATE INDEX IF NOT EXISTS idx_otps_email_purpose_created
   ON otps (LOWER(email), purpose, created_at DESC);
+
+-- Persistent login sessions are revoked on logout or by explicit security action.
+ALTER TABLE refresh_tokens ALTER COLUMN expires_at DROP NOT NULL;

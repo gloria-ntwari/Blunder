@@ -12,7 +12,8 @@ const signTokens = (userId) => {
     expiresIn: process.env.JWT_EXPIRES_IN || '15m',
   });
   const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+    // Persistent sessions stay valid until explicit logout or server-side revocation.
+    // Security-sensitive events should revoke the user's stored refresh tokens.
   });
   return { accessToken, refreshToken };
 };
@@ -132,10 +133,9 @@ export const login = async (req, res, next) => {
 
     const { accessToken, refreshToken } = signTokens(user.id);
 
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await query(
-      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-      [user.id, refreshToken, expiresAt]
+      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, NULL)',
+      [user.id, refreshToken]
     );
 
     const { password_hash, ...safeUser } = user;
@@ -215,20 +215,28 @@ export const refresh = async (req, res, next) => {
     }
 
     const stored = await query(
-      'SELECT id FROM refresh_tokens WHERE token = $1 AND expires_at > NOW()',
+      'SELECT id, user_id FROM refresh_tokens WHERE token = $1 AND (expires_at IS NULL OR expires_at > NOW())',
       [refreshToken]
     );
     if (!stored.rows.length)
       return res.status(401).json({ message: 'Refresh token not found or expired' });
 
+    if (stored.rows[0].user_id !== decoded.userId)
+      return res.status(401).json({ message: 'Invalid refresh token' });
+
+    const activeUser = await query('SELECT is_active FROM users WHERE id = $1', [decoded.userId]);
+    if (!activeUser.rows.length || !activeUser.rows[0].is_active) {
+      await query('DELETE FROM refresh_tokens WHERE user_id = $1', [decoded.userId]);
+      return res.status(401).json({ message: 'Session is no longer valid' });
+    }
+
     const { accessToken, refreshToken: newRefresh } = signTokens(decoded.userId);
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     // Rotate refresh token
     await query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
     await query(
-      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
-      [decoded.userId, newRefresh, expiresAt]
+      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, NULL)',
+      [decoded.userId, newRefresh]
     );
 
     res.json({ accessToken, refreshToken: newRefresh });
@@ -400,6 +408,7 @@ export const setPassword = async (req, res, next) => {
       `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
       [hash, decoded.userId]
     );
+    await query('DELETE FROM refresh_tokens WHERE user_id = $1', [decoded.userId]);
 
     res.json({ message: 'Password set successfully. You can now log in.' });
   } catch (err) { next(err); }
@@ -441,7 +450,8 @@ export const resetPassword = async (req, res, next) => {
     await query('UPDATE otps SET used = TRUE WHERE id = $1', [result.rows[0].id]);
 
     const hash = await bcrypt.hash(newPassword, 12);
-    await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE LOWER(email) = $2', [hash, normalizedEmail]);
+    const updated = await query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE LOWER(email) = $2 RETURNING id', [hash, normalizedEmail]);
+    if (updated.rows.length) await query('DELETE FROM refresh_tokens WHERE user_id = $1', [updated.rows[0].id]);
 
     res.json({ message: 'Password reset successful. You can now log in.' });
   } catch (err) { next(err); }

@@ -158,7 +158,7 @@ export default function RegisterPage() {
         <div className="relative z-10 flex items-center gap-3">
           <img src="/assets/louisenlund_logo.png" alt="Louisenlund" className="w-11 h-11 object-contain rounded-full bg-white/10 p-1 backdrop-blur-xs" />
           <div>
-            <h1 className="text-xl font-bold tracking-tight">B- Lunder</h1>
+            <h1 className="text-xl font-bold tracking-tight">Be- Lunder</h1>
             <p className="text-[10px] text-white/70 tracking-widest uppercase">The Louisenlund Community</p>
           </div>
         </div>

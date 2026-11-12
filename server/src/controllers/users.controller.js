@@ -21,7 +21,7 @@ export const getMe = async (req, res, next) => {
 // ── PUT /api/users/me ─────────────────────────────────────────────────────────
 export const updateMe = async (req, res, next) => {
   try {
-    const { full_name, email, academic_track, class_year, mentor_group_id } = req.body;
+    const { full_name, email } = req.body;
     let avatar_url = req.user.avatar_url;
 
     if (req.file) {
@@ -37,32 +37,14 @@ export const updateMe = async (req, res, next) => {
       if (existing.rows.length) return res.status(409).json({ message: 'Email already in use' });
     }
 
-    const selectedGroupId = mentor_group_id || null;
-    if (selectedGroupId) {
-      const group = await query(
-        'SELECT id, academic_track, class_year FROM mentor_groups WHERE id = $1',
-        [selectedGroupId]
-      );
-      if (!group.rows.length) return res.status(400).json({ message: 'Selected mentor group was not found' });
-      if (academic_track && group.rows[0].academic_track !== academic_track) {
-        return res.status(400).json({ message: 'Mentor group does not match the selected academic track' });
-      }
-      if (class_year && group.rows[0].class_year !== class_year) {
-        return res.status(400).json({ message: 'Mentor group does not match the selected class / year' });
-      }
-    }
-
     await query(
       `UPDATE users SET
         full_name = COALESCE(NULLIF($1, ''), full_name),
         email = $2,
-        academic_track = $3,
-        class_year = $4,
-        mentor_group_id = $5,
-        avatar_url = $6,
+        avatar_url = $3,
         updated_at = NOW()
-       WHERE id = $7`,
-      [full_name?.trim(), normalizedEmail, academic_track || null, class_year || null, selectedGroupId, avatar_url, req.user.id]
+       WHERE id = $4`,
+      [full_name?.trim(), normalizedEmail, avatar_url, req.user.id]
     );
 
     const updated = await query(

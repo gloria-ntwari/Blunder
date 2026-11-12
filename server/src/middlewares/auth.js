@@ -15,15 +15,21 @@ export const authenticate = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const result = await query(
-      'SELECT id, full_name, email, role, admin_type, academic_track, class_year, mentor_group_id, house_id, avatar_url, is_active, can_post_school_wide FROM users WHERE id = $1',
+      `SELECT u.id, u.full_name, u.email, u.role, u.admin_type, u.academic_track,
+              u.class_year, u.mentor_group_id, u.house_id, u.avatar_url, u.is_active,
+              u.can_post_school_wide, r.id AS refresh_session_id
+       FROM users u
+       LEFT JOIN refresh_tokens r ON r.user_id = u.id
+       WHERE u.id = $1`,
       [decoded.userId]
     );
 
-    if (!result.rows.length || !result.rows[0].is_active) {
+    if (!result.rows.length || !result.rows[0].is_active || !result.rows[0].refresh_session_id) {
       return res.status(401).json({ message: 'User not found or inactive' });
     }
 
     req.user = result.rows[0];
+    delete req.user.refresh_session_id;
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {

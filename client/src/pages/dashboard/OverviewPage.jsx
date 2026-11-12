@@ -14,7 +14,9 @@ import {
   Search,
   CheckCircle2,
   FileText,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useSocket } from '../../context/SocketContext.jsx';
@@ -41,6 +43,7 @@ export default function OverviewPage() {
   const [snackMessage, setSnackMessage] = useState('');
   const [snackExpires, setSnackExpires] = useState(60);
   const [postingSnack, setPostingSnack] = useState(false);
+  const [statsPaused, setStatsPaused] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -232,9 +235,15 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* Seamless infinite stats marquee */}
-      <div className="w-full overflow-hidden relative">
-        <div className="flex w-max animate-marquee ">
+      {/* Continuously moving stats with manual scrolling controls */}
+      <div className="relative">
+        
+        <div className="w-full overflow-x-auto overflow-y-hidden scrollbar-hide" data-stats-track role="region" tabIndex={0} aria-label="Dashboard statistics. Scroll horizontally to browse cards." onMouseEnter={() => setStatsPaused(true)} onMouseLeave={() => setStatsPaused(false)} onTouchStart={() => setStatsPaused(true)} onWheel={(event) => {
+          if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+            event.currentTarget.scrollLeft += event.deltaY;
+          }
+        }}>
+        <div className={`flex w-max stats-marquee-track ${statsPaused ? 'is-paused' : ''}`}>
           {[...statCards, ...statCards].map((card, index) => {
             const Icon = card.icon;
             const duplicate = index >= statCards.length;
@@ -244,6 +253,7 @@ export default function OverviewPage() {
                 to={card.href}
                 aria-hidden={duplicate}
                 tabIndex={duplicate ? -1 : undefined}
+                onClick={() => setStatsPaused(true)}
                 className={`w-[min(78vw,17rem)] sm:w-64 lg:w-72 shrink-0 mr-4 bg-white p-5 rounded-xl border border-slate-200/70 shadow-xs ${card.hoverClass} hover:shadow-sm transition-all group/card`}
               >
                 <div className="flex items-start justify-between">
@@ -256,6 +266,7 @@ export default function OverviewPage() {
               </Link>
             );
           })}
+        </div>
         </div>
       </div>
 

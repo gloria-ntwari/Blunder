@@ -54,7 +54,7 @@ function AppInner() {
             <span className="absolute inset-7 rounded-full bg-[#e4f2fe] animate-pulse" />
             <img src="/assets/louisenlund_logo.png" alt="" className="relative z-10 w-12 h-12 object-contain rounded-full" />
           </div>
-          <span className="text-sm text-[#1a2b49] font-semibold tracking-wide">Loading B- Lunder...</span>
+          <span className="text-sm text-[#1a2b49] font-semibold tracking-wide">Loading Be- Lunder...</span>
         </div>
       </div>
     );

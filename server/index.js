@@ -76,5 +76,5 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 httpServer.listen(PORT, () => {
-  console.log(`🚀 B- Lunder server running on port ${PORT}`);
+  console.log(`🚀 Be- Lunder server running on port ${PORT}`);
 });

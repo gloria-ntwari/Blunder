@@ -63,7 +63,7 @@ export default function LoginPage() {
             className="w-11 h-11 object-contain rounded-full bg-white/10 p-1 backdrop-blur-xs"
           />
           <div>
-            <h1 className="text-xl font-bold tracking-tight">B- Lunder</h1>
+            <h1 className="text-xl font-bold tracking-tight">Be- Lunder</h1>
             <p className="text-[10px] text-white/70 tracking-widest uppercase">The Louisenlund Community</p>
           </div>
         </div>
@@ -175,7 +175,7 @@ export default function LoginPage() {
           {/* No account link & invitation activation */}
           <div className="space-y-2 text-center text-[15px] text-gray-500">
             <p>
-              {t('auth.noAccount', 'No B- Lunder account yet?')}{' '}
+              {t('auth.noAccount', 'New to Be- Lunder?')}{' '}
               <Link to="/register" className="text-[#1a1a2e] font-semibold hover:underline">
                 {t('auth.createAccount', 'Create an account')}
               </Link>
