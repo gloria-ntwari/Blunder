@@ -238,7 +238,7 @@ export default function OverviewPage() {
       {/* Continuously moving stats with manual scrolling controls */}
       <div className="relative">
         
-        <div className="w-full overflow-x-auto overflow-y-hidden scrollbar-hide" data-stats-track role="region" tabIndex={0} aria-label="Dashboard statistics. Scroll horizontally to browse cards." onMouseEnter={() => setStatsPaused(true)} onMouseLeave={() => setStatsPaused(false)} onTouchStart={() => setStatsPaused(true)} onWheel={(event) => {
+        <div className="stats-scroll-viewport w-full overflow-x-auto overflow-y-hidden" data-stats-track role="region" tabIndex={0} aria-label="Dashboard statistics. Scroll horizontally to browse cards." onMouseEnter={() => setStatsPaused(true)} onMouseLeave={() => setStatsPaused(false)} onTouchStart={() => setStatsPaused(true)} onWheel={(event) => {
           if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
             event.currentTarget.scrollLeft += event.deltaY;
           }

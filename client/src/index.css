@@ -58,6 +58,16 @@ body {
   border-radius: 99px;
 }
 
+/* Hide the dashboard stats track scrollbar while retaining horizontal scrolling. */
+.stats-scroll-viewport {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stats-scroll-viewport::-webkit-scrollbar {
+  display: none;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {
