@@ -7,6 +7,12 @@ import { sendInviteEmail, sendPasswordResetEmail, sendVerificationEmail } from '
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const generateOtp = () => crypto.randomInt(100000, 999999).toString();
 
+// Keep the DB expiry compatible with deployments where expires_at is NOT NULL.
+const refreshTokenExpiresAt = (token) => {
+  const decoded = jwt.decode(token);
+  return decoded?.exp ? new Date(decoded.exp * 1000) : new Date('9999-12-31T23:59:59.999Z');
+};
+
 const signTokens = (userId) => {
   const accessToken = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '15m',
@@ -134,8 +140,8 @@ export const login = async (req, res, next) => {
     const { accessToken, refreshToken } = signTokens(user.id);
 
     await query(
-      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, NULL)',
-      [user.id, refreshToken]
+      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
+      [user.id, refreshToken, refreshTokenExpiresAt(refreshToken)]
     );
 
     const { password_hash, ...safeUser } = user;
@@ -230,16 +236,13 @@ export const refresh = async (req, res, next) => {
       return res.status(401).json({ message: 'Session is no longer valid' });
     }
 
-    const { accessToken, refreshToken: newRefresh } = signTokens(decoded.userId);
+    const accessToken = jwt.sign({ userId: decoded.userId }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '15m',
+    });
 
-    // Rotate refresh token
-    await query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
-    await query(
-      'INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES ($1, $2, NULL)',
-      [decoded.userId, newRefresh]
-    );
-
-    res.json({ accessToken, refreshToken: newRefresh });
+    // Stable persistent refresh tokens prevent simultaneous tabs from
+    // invalidating each other while refreshing.
+    res.json({ accessToken, refreshToken });
   } catch (err) { next(err); }
 };
 

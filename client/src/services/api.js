@@ -52,6 +52,20 @@ const scheduleTokenRefresh = (token) => {
 const refreshSession = async () => {
   const refreshToken = localStorage.getItem('blunder_refresh_token');
   if (!refreshToken) throw new Error('No refresh token');
+  // Another tab may have refreshed while this request was waiting. Refresh
+  // only after serializing through Web Locks when supported.
+  if (navigator.locks?.request) {
+    return navigator.locks.request('blunder-auth-refresh', async () => {
+      const latestToken = localStorage.getItem('blunder_refresh_token');
+      const accessToken = localStorage.getItem('blunder_access_token');
+      if (latestToken !== refreshToken && accessToken) return accessToken;
+      return performRefresh(latestToken || refreshToken);
+    });
+  }
+  return performRefresh(refreshToken);
+};
+
+const performRefresh = async (refreshToken) => {
   const { data } = await axios.post(`${apiOrigin}/api/auth/refresh`, { refreshToken });
   localStorage.setItem('blunder_access_token', data.accessToken);
   localStorage.setItem('blunder_refresh_token', data.refreshToken);
@@ -70,6 +84,14 @@ if (currentToken) {
     // Malformed tokens will be cleared by the normal 401 recovery path.
   }
 }
+
+// Keep this tab's in-memory Zustand state aligned with tokens refreshed by a
+// different tab. localStorage emits a storage event in the other tabs.
+window.addEventListener('storage', (event) => {
+  if (event.key === 'blunder_access_token' && event.newValue) {
+    scheduleTokenRefresh(event.newValue);
+  }
+});
 
 const processQueue = (error, token = null) => {
   failedQueue.forEach((prom) => (error ? prom.reject(error) : prom.resolve(token)));
