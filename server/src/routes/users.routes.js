@@ -9,7 +9,11 @@ const router = express.Router();
 
 router.get('/me', authenticate, getMe);
 router.put('/me', authenticate, upload.single('avatar'), updateMe);
-router.get('/mentor-groups', getMentorGroups); // public — used in registration
+router.get('/mentor-groups', (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization?.startsWith('Bearer ')) return getMentorGroups(req, res, next);
+  return authenticate(req, res, () => getMentorGroups(req, res, next));
+}); // Public for registration; authenticated student leaders receive only their track.
 router.get('/mentors', getMentors);           // public — used in registration
 
 // Super admins can view all users; student leaders can view permitted roles.

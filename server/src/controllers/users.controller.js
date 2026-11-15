@@ -69,9 +69,10 @@ export const getUsers = async (req, res, next) => {
     const params = [];
     const conditions = [];
 
-    // Student leaders manage only students in their own academic track.
+    // Student leaders manage students and committee members in their own academic track.
     if (req.user.role === 'student_leader') {
-      conditions.push(`u.role = 'student'`);
+      conditions.push(`u.role::text = ANY($${params.length + 1}::text[])`);
+      params.push(['student', 'committee']);
       conditions.push(`u.academic_track = $${params.length + 1}`);
       params.push(req.user.academic_track || '__none__');
     }
@@ -121,8 +122,8 @@ export const getUserById = async (req, res, next) => {
     );
     if (!result.rows.length) return res.status(404).json({ message: 'User not found' });
     if (req.user.role === 'student_leader' &&
-      (result.rows[0].role !== 'student' || result.rows[0].academic_track !== req.user.academic_track)) {
-      return res.status(403).json({ message: 'You can only view students in your academic track' });
+      (!['student', 'committee'].includes(result.rows[0].role) || result.rows[0].academic_track !== req.user.academic_track)) {
+      return res.status(403).json({ message: 'You can only view students and committee members in your academic track' });
     }
     res.json(result.rows[0]);
   } catch (err) { next(err); }
@@ -138,12 +139,17 @@ export const updateUser = async (req, res, next) => {
     }
 
     if (req.user.role === 'student_leader') {
-      const target = await query('SELECT role, academic_track FROM users WHERE id = $1', [req.params.id]);
-      if (!target.rows.length || target.rows[0].role !== 'student' || target.rows[0].academic_track !== req.user.academic_track) {
-        return res.status(403).json({ message: 'You can only edit students in your academic track' });
+      const target = await query('SELECT role::text AS role, academic_track FROM users WHERE id = $1', [req.params.id]);
+      if (!target.rows.length || !['student', 'committee'].includes(target.rows[0].role) || target.rows[0].academic_track !== req.user.academic_track) {
+        return res.status(403).json({ message: 'You can only edit students and committee members in your academic track' });
       }
-      if ((role && role !== 'student') || (academic_track && academic_track !== req.user.academic_track)) {
-        return res.status(403).json({ message: 'Student leaders cannot change a student role or academic track' });
+      if ((role && !['student', 'committee'].includes(role)) || (academic_track && academic_track !== req.user.academic_track)) {
+        return res.status(403).json({ message: 'Student leaders can only assign student or committee roles in their own academic track' });
+      }
+      if (mentor_group_id) {
+        const group = await query('SELECT academic_track FROM mentor_groups WHERE id=$1', [mentor_group_id]);
+        if (!group.rows.length || group.rows[0].academic_track !== req.user.academic_track)
+          return res.status(403).json({ message: 'You can only assign users to mentor groups in your academic track' });
       }
     }
 
@@ -184,9 +190,9 @@ export const deleteUser = async (req, res, next) => {
     if (req.params.id === req.user.id)
       return res.status(400).json({ message: 'Cannot delete your own account' });
     if (req.user.role === 'student_leader') {
-      const target = await query('SELECT role, academic_track FROM users WHERE id = $1', [req.params.id]);
-      if (!target.rows.length || target.rows[0].role !== 'student' || target.rows[0].academic_track !== req.user.academic_track) {
-        return res.status(403).json({ message: 'You can only delete students in your academic track' });
+      const target = await query('SELECT role::text AS role, academic_track FROM users WHERE id = $1', [req.params.id]);
+      if (!target.rows.length || !['student', 'committee'].includes(target.rows[0].role) || target.rows[0].academic_track !== req.user.academic_track) {
+        return res.status(403).json({ message: 'You can only delete students and committee members in your academic track' });
       }
     }
     await query('DELETE FROM users WHERE id = $1', [req.params.id]);
@@ -200,6 +206,11 @@ export const getMentorGroups = async (req, res, next) => {
     const { academic_track, class_year } = req.query;
     const params = [];
     const conditions = [];
+
+    if (req.user?.role === 'student_leader') {
+      conditions.push(`mg.academic_track = $${params.length + 1}`);
+      params.push(req.user.academic_track || '__none__');
+    }
 
     if (academic_track) {
       params.push(academic_track);

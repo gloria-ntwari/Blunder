@@ -9,8 +9,12 @@ import {
 
 const router = express.Router();
 
-// Public — used in registration step 2
-router.get('/', getMentorGroups);
+// Public for registration; authenticated student leaders are scoped to their track.
+router.get('/', (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization?.startsWith('Bearer ')) return getMentorGroups(req, res, next);
+  return authenticate(req, res, () => getMentorGroups(req, res, next));
+});
 
 // Super Admin & Student Leader only
 router.post('/', authenticate, authorize('super_admin', 'student_leader'), createMentorGroup);

@@ -29,6 +29,7 @@ import AdminUsersPage from './pages/admin/AdminUsersPage.jsx';
 import ProfilePage from './pages/profile/ProfilePage.jsx';
 import GuildsPage from './pages/guilds/GuildsPage.jsx';
 import SchulhausPage from './pages/schulhaus/SchulhausPage.jsx';
+import LungesligaPage from './pages/lungesliga/LungesligaPage.jsx';
 
 function AppInner() {
   const { initialize, isLoading, isAuthenticated, user } = useAuthStore();
@@ -79,6 +80,7 @@ function AppInner() {
           <Route path="/lost-found" element={<LostFoundPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/deadlines" element={<DeadlinesPage />} />
+          <Route path="/lungesliga" element={['student', 'student_leader', 'sv_committee', 'committee', 'super_admin'].includes(user?.role) ? <LungesligaPage /> : <Navigate to="/dashboard" replace />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/schuelerhaus" element={user?.role !== 'teacher' ? <SchulhausPage /> : <Navigate to="/dashboard" replace />} />
           <Route path="/schulhaus" element={<Navigate to="/schuelerhaus" replace />} />

@@ -208,7 +208,7 @@ export default function CalendarPage() {
             className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>{t('calendar.addEvent', '+ Add event')}</span>
+            <span>{t('Add event')}</span>
           </button>
         )}
       </div>

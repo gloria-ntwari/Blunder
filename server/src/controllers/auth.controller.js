@@ -265,7 +265,7 @@ export const inviteUser = async (req, res, next) => {
     if (!['sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student'].includes(role))
       return res.status(400).json({ message: 'Invalid role' });
 
-    // Student leaders can only invite student leaders, committee members, and mentors.
+    // Student leaders can invite committee members, mentors, and student leaders in their own track.
     if (req.user.role === 'student_leader' && !['student_leader', 'committee', 'mentor'].includes(role))
       return res.status(403).json({ message: 'Student leaders can only invite student leaders, committee members, and mentors' });
 
@@ -275,6 +275,15 @@ export const inviteUser = async (req, res, next) => {
     // Teachers don't have a class_year (they teach the whole track)
     if (role === 'teacher') {
       class_year = null;
+    }
+
+    if (req.user.role === 'student_leader' && academic_track !== req.user.academic_track)
+      return res.status(403).json({ message: 'You can only invite users into your academic track' });
+
+    if (req.user.role === 'student_leader' && mentor_group_id) {
+      const group = await query('SELECT academic_track FROM mentor_groups WHERE id=$1', [mentor_group_id]);
+      if (!group.rows.length || group.rows[0].academic_track !== req.user.academic_track)
+        return res.status(403).json({ message: 'You can only assign users to mentor groups in your academic track' });
     }
 
     const exists = await query('SELECT id, password_hash FROM users WHERE LOWER(email) = $1', [email]);

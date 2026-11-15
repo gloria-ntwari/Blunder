@@ -2,12 +2,17 @@ import { query } from '../config/db.js';
 import { emitDataChanged } from '../socket/index.js';
 
 // ── GET /api/mentor-groups ──────────────────────────────────────────────────
-// Public: returns mentor groups, optionally filtered by academic_track and/or class_year
+// Registration remains public; authenticated student leaders are scoped to their own track.
 export const getMentorGroups = async (req, res, next) => {
   try {
     const { academic_track, class_year } = req.query;
     const params = [];
     const conditions = [];
+
+    if (req.user?.role === 'student_leader') {
+      conditions.push(`mg.academic_track = $${params.length + 1}`);
+      params.push(req.user.academic_track || '__none__');
+    }
 
     if (academic_track) {
       params.push(academic_track);
@@ -43,6 +48,9 @@ export const createMentorGroup = async (req, res, next) => {
   try {
     const { name, academic_track, class_year } = req.body;
 
+    if (req.user.role === 'student_leader' && academic_track !== req.user.academic_track)
+      return res.status(403).json({ message: 'You can only create mentor groups in your academic track' });
+
     if (!name || !name.trim())
       return res.status(400).json({ message: 'Mentor group name is required' });
     if (!academic_track)
@@ -66,6 +74,13 @@ export const updateMentorGroup = async (req, res, next) => {
   try {
     const { name, academic_track, class_year, mentor_user_id } = req.body;
 
+    if (req.user.role === 'student_leader') {
+      const existing = await query('SELECT academic_track FROM mentor_groups WHERE id=$1', [req.params.id]);
+      if (!existing.rows.length) return res.status(404).json({ message: 'Mentor group not found' });
+      if (existing.rows[0].academic_track !== req.user.academic_track || (academic_track && academic_track !== req.user.academic_track))
+        return res.status(403).json({ message: 'You can only update mentor groups in your academic track' });
+    }
+
     const result = await query(
       `UPDATE mentor_groups SET
         name = COALESCE($1, name),
@@ -87,6 +102,12 @@ export const updateMentorGroup = async (req, res, next) => {
 // Super Admin & Student Leader only
 export const deleteMentorGroup = async (req, res, next) => {
   try {
+    if (req.user.role === 'student_leader') {
+      const existing = await query('SELECT academic_track FROM mentor_groups WHERE id=$1', [req.params.id]);
+      if (!existing.rows.length) return res.status(404).json({ message: 'Mentor group not found' });
+      if (existing.rows[0].academic_track !== req.user.academic_track)
+        return res.status(403).json({ message: 'You can only delete mentor groups in your academic track' });
+    }
     // Unassign students from this group first
     await query('UPDATE users SET mentor_group_id = NULL WHERE mentor_group_id = $1', [req.params.id]);
 

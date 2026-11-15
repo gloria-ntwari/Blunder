@@ -54,8 +54,9 @@ export const emitAnnouncement = (io, announcement) => {
   const { scope, target_track, target_mentor_group_id } = announcement;
   if (scope === 'school_wide') {
     io.to('all').emit('new_announcement', announcement);
-  } else if (scope === 'academic_track' && target_track) {
-    io.to(`track:${target_track}`).emit('new_announcement', announcement);
+  } else if (scope === 'academic_track' && (announcement.target_tracks?.length || target_track)) {
+    const tracks = announcement.target_tracks?.length ? announcement.target_tracks : [target_track];
+    tracks.forEach((track) => io.to(`track:${track}`).emit('new_announcement', announcement));
   } else if (scope === 'mentor_group' && target_mentor_group_id) {
     io.to(`mentor_group:${target_mentor_group_id}`).emit('new_announcement', announcement);
   }
@@ -64,8 +65,9 @@ export const emitAnnouncement = (io, announcement) => {
 export const emitAnnouncementReaction = (io, announcement, update) => {
   if (announcement.scope === 'school_wide') {
     io.to('all').emit('announcement_reaction_changed', update);
-  } else if (announcement.scope === 'academic_track' && announcement.target_track) {
-    io.to(`track:${announcement.target_track}`).emit('announcement_reaction_changed', update);
+  } else if (announcement.scope === 'academic_track' && (announcement.target_tracks?.length || announcement.target_track)) {
+    const tracks = announcement.target_tracks?.length ? announcement.target_tracks : [announcement.target_track];
+    tracks.forEach((track) => io.to(`track:${track}`).emit('announcement_reaction_changed', update));
   } else if (announcement.scope === 'mentor_group' && announcement.target_mentor_group_id) {
     io.to(`mentor_group:${announcement.target_mentor_group_id}`).emit('announcement_reaction_changed', update);
   }

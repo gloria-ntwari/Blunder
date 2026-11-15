@@ -16,7 +16,10 @@ export const createNotificationsForChange = async (entity, record) => {
   let audience = 'SELECT id FROM users WHERE is_active = TRUE';
   const params = [];
 
-  if (entity === 'announcement' && record.scope === 'academic_track' && record.target_track) {
+  if (entity === 'announcement' && record.scope === 'academic_track' && record.target_tracks?.length) {
+    params.push(record.target_tracks);
+    audience += ` AND academic_track::text = ANY($${params.length}::text[])`;
+  } else if (entity === 'announcement' && record.scope === 'academic_track' && record.target_track) {
     params.push(record.target_track);
     audience += ` AND academic_track = $${params.length}`;
   } else if (entity === 'announcement' && record.scope === 'mentor_group' && record.target_mentor_group_id) {

@@ -1,0 +1,19 @@
+import express from 'express';
+import { authenticate } from '../middlewares/auth.js';
+import { leagueState, searchLeagueUsers, createHouse, updateHouse, deleteHouse, addHousePlayer, updateHousePlayer, deleteHousePlayer, createFixture, recordGoal, deleteGoal, completeFixture } from '../controllers/league.controller.js';
+
+const router = express.Router();
+router.use(authenticate);
+router.get('/users', searchLeagueUsers);
+router.get('/', leagueState);
+router.post('/houses', createHouse);
+router.put('/houses/:id', updateHouse);
+router.delete('/houses/:id', deleteHouse);
+router.post('/houses/:id/players', addHousePlayer);
+router.put('/houses/:id/players/:playerId', updateHousePlayer);
+router.delete('/houses/:id/players/:playerId', deleteHousePlayer);
+router.post('/fixtures', createFixture);
+router.post('/fixtures/:id/goals', recordGoal);
+router.post('/fixtures/:id/complete', completeFixture);
+router.delete('/goals/:id', deleteGoal);
+export default router;

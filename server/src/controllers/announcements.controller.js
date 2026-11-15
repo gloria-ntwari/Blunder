@@ -24,7 +24,8 @@ export const getAnnouncements = async (req, res, next) => {
       scopeParams.push(u.class_year || null);
       const classParam = `$${scopeParams.length}`;
       scopeConditions.push(
-        `(a.scope = 'academic_track' AND a.target_track = ${trackParam}
+        `(a.scope = 'academic_track' AND (a.target_track = ${trackParam}
+          OR EXISTS (SELECT 1 FROM announcement_tracks announcement_track WHERE announcement_track.announcement_id = a.id AND announcement_track.academic_track = ${trackParam}))
           AND (a.target_class IS NULL OR a.target_class = ${classParam}))`
       );
     }
@@ -45,6 +46,11 @@ export const getAnnouncements = async (req, res, next) => {
 
     const result = await query(
       `SELECT a.*, u.full_name as author_name, u.avatar_url as author_avatar,
+         COALESCE(
+           (SELECT array_agg(announcement_track.academic_track::text ORDER BY announcement_track.academic_track::text)
+            FROM announcement_tracks announcement_track WHERE announcement_track.announcement_id = a.id),
+           CASE WHEN a.target_track IS NOT NULL THEN ARRAY[a.target_track::text] ELSE ARRAY[]::text[] END
+         ) AS target_tracks,
          (SELECT COUNT(*) FROM announcement_views v WHERE v.announcement_id = a.id)::int AS view_count,
          (SELECT COUNT(*) FROM announcement_reactions r WHERE r.announcement_id = a.id AND r.reaction = '❤️')::int AS heart_count,
          (SELECT COUNT(*) FROM announcement_reactions r WHERE r.announcement_id = a.id AND r.reaction = '👍')::int AS like_count,
@@ -92,7 +98,11 @@ export const reactToAnnouncement = async (req, res, next) => {
   try {
     const { reaction } = req.body;
     if (typeof reaction !== 'string' || [...reaction].length > 8) return res.status(400).json({ message: 'Invalid reaction' });
-    const exists = await query('SELECT scope, target_track, target_mentor_group_id FROM announcements WHERE id = $1', [req.params.id]);
+    const exists = await query(
+      `SELECT a.scope, a.target_track, a.target_mentor_group_id,
+              ARRAY(SELECT announcement_track.academic_track::text FROM announcement_tracks announcement_track WHERE announcement_track.announcement_id=a.id) AS target_tracks
+       FROM announcements a WHERE a.id=$1`, [req.params.id]
+    );
     if (!exists.rows.length) return res.status(404).json({ message: 'Announcement not found' });
     const current = await query('SELECT 1 FROM announcement_reactions WHERE announcement_id = $1 AND user_id = $2 AND reaction = $3', [req.params.id, req.user.id, reaction]);
     if (current.rows.length) {
@@ -152,6 +162,21 @@ export const createAnnouncement = async (req, res, next) => {
     const { title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, poll_enabled, expires_at } = req.body;
     const u = req.user;
     if (!canPost(u)) return res.status(403).json({ message: 'You do not have permission to post announcements' });
+    const trackBroadcaster = ['student_leader', 'committee'].includes(u.role);
+    let selectedTracks = [];
+    if (trackBroadcaster) {
+      try {
+        selectedTracks = Array.isArray(req.body.target_tracks) ? req.body.target_tracks : JSON.parse(req.body.target_tracks || '[]');
+      } catch { return res.status(400).json({ message: 'Choose valid announcement systems' }); }
+      if (!Array.isArray(selectedTracks)) return res.status(400).json({ message: 'Choose valid announcement systems' });
+      selectedTracks = [...new Set(selectedTracks)];
+      const allowedTracks = u.academic_track === 'IB' ? ['IB'] : ['MINT', 'Abitur', 'Agrar'];
+      if (!u.academic_track || !allowedTracks.includes(u.academic_track) || scope !== 'academic_track' || !selectedTracks.length || !selectedTracks.includes(u.academic_track) || selectedTracks.some((track) => !allowedTracks.includes(track))) {
+        return res.status(403).json({ message: u.academic_track === 'IB'
+          ? 'IB student leaders and Committee members can post only to IB'
+          : 'Choose your own system and only MINT, Abitur, or Agrar systems' });
+      }
+    }
     const image_url = req.file ? await uploadImage(req.file.buffer, 'blunder/announcements') : null;
 
     // Mentors can post only to their own mentor group or their own class.
@@ -175,6 +200,10 @@ export const createAnnouncement = async (req, res, next) => {
       return res.status(403).json({ message: 'You are permitted to post school-wide announcements only' });
     }
 
+    if (trackBroadcaster && target_class) {
+      return res.status(403).json({ message: 'Student leaders and Committee members can post to whole systems only' });
+    }
+
     // School leaders can only post for their academic track
     if (u.role === 'school_leader' || (u.role === 'admin' && u.admin_type === 'school_leader')) {
       if (!['academic_track', 'school_wide'].includes(scope))
@@ -188,16 +217,27 @@ export const createAnnouncement = async (req, res, next) => {
       `INSERT INTO announcements
          (title, body, scope, target_track, target_class, target_mentor_group_id, is_pinned, is_urgent, image_url, created_by, poll_enabled, expires_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
-      [title, body, scope || 'school_wide', target_track || null, target_class || null,
+      [title, body, scope || 'school_wide', trackBroadcaster ? selectedTracks[0] : target_track || null, target_class || null,
        target_mentor_group_id || null, is_pinned === 'true' || is_pinned === true,
        is_urgent === 'true' || is_urgent === true, image_url, u.id, poll_enabled === 'true' || poll_enabled === true, expires_at || null]
     );
 
-    const io = req.app.get('io');
-    emitAnnouncement(io, result.rows[0]);
-    emitDataChanged(io, 'announcement', result.rows[0]);
+    if (trackBroadcaster) {
+      await query(
+        `INSERT INTO announcement_tracks (announcement_id, academic_track)
+         SELECT $1, unnest($2::academic_track[]) ON CONFLICT DO NOTHING`,
+        [result.rows[0].id, selectedTracks]
+      );
+    }
 
-    res.status(201).json(result.rows[0]);
+    const io = req.app.get('io');
+    const announcement = trackBroadcaster
+      ? { ...result.rows[0], target_tracks: selectedTracks }
+      : result.rows[0];
+    emitAnnouncement(io, announcement);
+    emitDataChanged(io, 'announcement', announcement);
+
+    res.status(201).json(announcement);
   } catch (err) { next(err); }
 };
 

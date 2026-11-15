@@ -46,6 +46,7 @@ export default function AnnouncementsPage() {
   const [imagePreview, setImagePreview] = useState('');
   const [scope, setScope] = useState('school_wide');
   const [targetTrack, setTargetTrack] = useState(user?.academic_track || 'IB');
+  const [targetTracks, setTargetTracks] = useState(user?.academic_track ? [user.academic_track] : ['IB']);
   const [targetClass, setTargetClass] = useState('');
   const [targetMentorId, setTargetMentorId] = useState('');
   const [mentorsForClass, setMentorsForClass] = useState([]);
@@ -62,6 +63,15 @@ export default function AnnouncementsPage() {
   const canPostSchoolWide = ['super_admin', 'sv_committee', 'teacher'].includes(user?.role) || Boolean(user?.can_post_school_wide);
   const canPostTrack      = ['super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee'].includes(user?.role);
   const canPostMentorGroup = user?.role === 'mentor';
+  const isTrackBroadcaster = ['student_leader', 'committee'].includes(user?.role);
+  const availableBroadcastTracks = user?.academic_track === 'IB' ? ['IB'] : ['MINT', 'Abitur', 'Agrar'];
+
+  useEffect(() => {
+    if (!isTrackBroadcaster) return;
+    const ownTrack = user?.academic_track || 'IB';
+    setTargetTrack(ownTrack);
+    setTargetTracks([ownTrack]);
+  }, [user?.role, user?.academic_track]);
 
   const fetchMentorsForClass = async (track, classYr) => {
     if (!track || !classYr) { setMentorsForClass([]); setTargetMentorId(''); return; }
@@ -84,7 +94,10 @@ export default function AnnouncementsPage() {
     setTitle(''); setBody(''); setScope(defaultScope);
     setExpiresAt('');
     setImageFile(null); setImagePreview('');
-    setTargetTrack(user?.academic_track || 'IB'); setTargetClass(user?.role === 'mentor' ? (user?.class_year || '') : '');
+    const ownTrack = user?.academic_track || 'IB';
+    setTargetTrack(ownTrack);
+    setTargetTracks([ownTrack]);
+    setTargetClass(user?.role === 'mentor' ? (user?.class_year || '') : '');
     setTargetMentorId(''); setMentorsForClass([]);
     setIsPinned(false); setIsUrgent(false);
     setPollEnabled(false);
@@ -99,6 +112,7 @@ export default function AnnouncementsPage() {
     setImageFile(null); setImagePreview(ann.image_url || '');
     setScope(ann.scope || 'school_wide');
     setTargetTrack(ann.target_track || user?.academic_track || 'IB');
+    setTargetTracks(ann.target_tracks?.length ? ann.target_tracks : [ann.target_track || user?.academic_track || 'IB']);
     setTargetClass(ann.target_class || '');
     setTargetMentorId('');
     setMentorsForClass([]);
@@ -164,8 +178,12 @@ export default function AnnouncementsPage() {
     payload.append('title', title);
     payload.append('body', body);
     payload.append('scope', scope);
-    payload.append('target_track', scope === 'academic_track' ? targetTrack : '');
-    payload.append('target_class', scope === 'academic_track' && targetClass ? targetClass : '');
+    const announcementTracks = scope === 'academic_track'
+      ? (isTrackBroadcaster ? targetTracks : [targetTrack])
+      : [];
+    payload.append('target_track', announcementTracks[0] || '');
+    payload.append('target_tracks', JSON.stringify(announcementTracks));
+    payload.append('target_class', scope === 'academic_track' && !isTrackBroadcaster && targetClass ? targetClass : '');
     payload.append('target_mentor_group_id', scope === 'academic_track' && targetClass && targetMentorId
       ? targetMentorId
       : scope === 'mentor_group' ? user?.mentor_group_id || '' : '');
@@ -262,7 +280,7 @@ export default function AnnouncementsPage() {
             className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors self-start md:self-auto cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>{t('announcements.addNew', '+ New announcement')}</span>
+            <span>{t('New announcement')}</span>
           </button>
         )}
       </div>
@@ -317,9 +335,9 @@ export default function AnnouncementsPage() {
                   <span className="px-2.5 py-0.5 rounded-sm text-[10px]  font-bold uppercase tracking-wider bg-[#e4f2fe] text-[#2383c9] border border-[#2383c9]/30">
                     {ann.scope.replace('_', ' ')}
                   </span>
-                  {ann.target_track && (
+                  {(ann.target_tracks?.length > 0 || ann.target_track) && (
                     <span className="px-2.5 py-0.5 rounded-sm text-[10px]  border border-purple-200 font-bold uppercase tracking-wider bg-purple-50 text-purple-600">
-                      {ann.target_track} {ann.target_class ? `• ${ann.target_class}` : ''}
+                      {(ann.target_tracks?.length ? ann.target_tracks : [ann.target_track]).map((track) => track === 'Abitur' ? 'ABITUR' : track).join(', ')} {ann.target_class ? `• ${ann.target_class}` : ''}
                     </span>
                   )}
                   {ann.is_pinned && (
@@ -419,9 +437,6 @@ export default function AnnouncementsPage() {
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#e4f2fe] text-[#2383c9] flex items-center justify-center shrink-0">
-                  <Bell className="w-4 h-4" />
-                </div>
                 <h3 className="font-bold text-[18px] text-[#0f172a]">{editingAnn ? 'Edit Announcement' : 'New Announcement'}</h3>
               </div>
               <button
@@ -472,23 +487,58 @@ export default function AnnouncementsPage() {
 
               {scope === 'academic_track' && user?.role !== 'mentor' && (
                 <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">Target Track</label>
-                    <select
-                      value={targetTrack}
-                      onChange={(e) => {
-                        setTargetTrack(e.target.value);
-                        setTargetClass('');
-                        setMentorsForClass([]);
-                        setTargetMentorId('');
-                      }}
-                      className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors"
-                    >
-                      {ACADEMIC_TRACKS.map((track) => <option key={track} value={track}>{track}</option>)}
-                    </select>
-                  </div>
+                  {isTrackBroadcaster ? (
+                    user?.academic_track === 'IB' ? (
+                      <div className="rounded-lg border border-[#2383c9]/20 bg-[#e4f2fe]/50 px-3.5 py-3 text-xs text-[#1a2b49]">
+                        This announcement will be shared with the <strong>IB</strong> system only.
+                      </div>
+                    ) : (
+                      <fieldset className="space-y-2">
+                        <legend className="mb-1.5 text-xs font-semibold text-[#0f172a]">Systems to announce to</legend>
+                        <p className="text-[11px] text-[#64748b]">Choose one, two, or all three systems.</p>
+                        <div className="grid gap-2 sm:grid-cols-3">
+                          {availableBroadcastTracks.map((track) => (
+                            <label key={track} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-xs font-semibold transition ${targetTracks.includes(track) ? 'border-[#2383c9] bg-[#e4f2fe]/60 text-[#1a2b49]' : 'border-slate-200 bg-white text-[#64748b] hover:border-slate-300'}`}>
+                              <input
+                                type="checkbox"
+                                checked={targetTracks.includes(track)}
+                                disabled={track === user?.academic_track}
+                                onChange={(event) => {
+                                  const next = event.target.checked
+                                    ? [...targetTracks, track]
+                                    : targetTracks.filter((selected) => selected !== track);
+                                  setTargetTracks(next);
+                                  if (next.length) setTargetTrack(next[0]);
+                                  setTargetClass('');
+                                  setTargetMentorId('');
+                                }}
+                                className="h-4 w-4 accent-[#1a2b49]"
+                              />
+                              {track === 'Abitur' ? 'ABITUR' : track}
+                            </label>
+                          ))}
+                        </div>
+                      </fieldset>
+                    )
+                  ) : (
+                    <div>
+                      <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">Target Track</label>
+                      <select
+                        value={targetTrack}
+                        onChange={(e) => {
+                          setTargetTrack(e.target.value);
+                          setTargetClass('');
+                          setMentorsForClass([]);
+                          setTargetMentorId('');
+                        }}
+                        className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors"
+                      >
+                        {ACADEMIC_TRACKS.map((track) => <option key={track} value={track}>{track}</option>)}
+                      </select>
+                    </div>
+                  )}
 
-                  <div>
+                  {!isTrackBroadcaster && <><div>
                     <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">Target Class / Year Level</label>
                     <select
                       value={targetClass}
@@ -530,6 +580,7 @@ export default function AnnouncementsPage() {
                       )}
                     </div>
                   )}
+                  </>}
                 </div>
               )}
 

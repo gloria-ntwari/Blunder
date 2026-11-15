@@ -18,6 +18,7 @@ import notificationRoutes from './src/routes/notifications.routes.js';
 import mentorGroupRoutes from './src/routes/mentorGroups.routes.js';
 import guildRoutes from './src/routes/guilds.routes.js';
 import schulhausRoutes from './src/routes/schulhaus.routes.js';
+import leagueRoutes from './src/routes/league.routes.js';
 import { initSocket } from './src/socket/index.js';
 
 dotenv.config();
@@ -67,6 +68,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/mentor-groups', mentorGroupRoutes);
 app.use('/api/guilds', guildRoutes);
 app.use('/api/schulhaus', schulhausRoutes);
+app.use('/api/league', leagueRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));

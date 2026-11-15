@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Music2,
+  Trophy,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -161,6 +162,12 @@ export default function Sidebar({ isOpen = false, onClose = () => {}, collapsed 
               </>
             )}
           </NavLink>
+
+          {['student', 'student_leader', 'sv_committee', 'committee', 'super_admin'].includes(role) && (
+            <NavLink to="/lungesliga" onClick={onClose} title="Lungesliga" className={({ isActive }) => navLinkClass(isActive)}>
+              {({ isActive }) => <>{isActive && indicator}<Trophy className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} /><span className={collapsed ? 'lg:hidden' : ''}>Lungesliga</span></>}
+            </NavLink>
+          )}
 
           {['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'super_admin'].includes(role) && (
             <NavLink to="/guilds" onClick={onClose} title={t('nav.guilds', 'Guilds')} className={({ isActive }) => navLinkClass(isActive)}>

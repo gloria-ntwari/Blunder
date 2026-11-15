@@ -38,14 +38,14 @@ export default function AdminUsersPage() {
   const [totalUsers, setTotalUsers] = useState(0);
   const PAGE_SIZE = 8;
   const visibleRoles = user?.role === 'student_leader'
-    ? ['', 'student']
+    ? ['', 'student', 'committee']
     : ['', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student', ...(user?.role === 'super_admin' ? ['dj_team'] : [])];
 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [invitedSuccessInfo, setInvitedSuccessInfo] = useState(null);
   const [inviteRole, setInviteRole] = useState(user?.role === 'student_leader' ? 'student_leader' : 'sv_committee');
   const [inviteAdminType, setInviteAdminType] = useState('');
-  const [inviteTrack, setInviteTrack] = useState('IB');
+  const [inviteTrack, setInviteTrack] = useState(user?.role === 'student_leader' ? user.academic_track || 'IB' : 'IB');
   const [inviteClass, setInviteClass] = useState('DP2');
   const [inviteFullName, setInviteFullName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -73,10 +73,11 @@ export default function AdminUsersPage() {
   // ── Mentor Groups management ──
   const [showMentorGroupsPanel, setShowMentorGroupsPanel] = useState(searchParams.get('section') === 'mentor-groups');
   const [mentorGroupsList, setMentorGroupsList] = useState([]);
+  const [mentorGroupsPage, setMentorGroupsPage] = useState(1);
   const [loadingMentorGroups, setLoadingMentorGroups] = useState(false);
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
-  const [newGroupTrack, setNewGroupTrack] = useState('IB');
+  const [newGroupTrack, setNewGroupTrack] = useState(user?.role === 'student_leader' ? user.academic_track || 'IB' : 'IB');
   const [newGroupClass, setNewGroupClass] = useState('DP2');
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [editingGroup, setEditingGroup] = useState(null);
@@ -92,6 +93,14 @@ export default function AdminUsersPage() {
 
   useEffect(() => { setCurrentPage(1); }, [roleFilter, searchTerm]);
   useEffect(() => { fetchUsers(); }, [roleFilter, searchTerm, currentPage]);
+  useEffect(() => {
+    if (user?.role === 'student_leader' && user.academic_track) {
+      setInviteTrack(user.academic_track);
+      setNewGroupTrack(user.academic_track);
+      setInviteClass(getClassesForTrack(user.academic_track)[0]?.value || '');
+      setNewGroupClass(getClassesForTrack(user.academic_track)[0]?.value || '');
+    }
+  }, [user?.role, user?.academic_track]);
 
   const fetchInviteMentors = async (track, classYr) => {
     if (!track) return;
@@ -132,7 +141,7 @@ export default function AdminUsersPage() {
   const fetchMentorGroupsList = async () => {
     setLoadingMentorGroups(true);
     try {
-      const res = await api.get('/mentor-groups');
+      const res = await api.get('/mentor-groups', { params: { academic_track: user?.role === 'student_leader' ? user.academic_track : undefined } });
       setMentorGroupsList(res.data || []);
     } catch {
       setMentorGroupsList([]);
@@ -145,7 +154,13 @@ export default function AdminUsersPage() {
     const mentorGroupsRequested = searchParams.get('section') === 'mentor-groups';
     setShowMentorGroupsPanel(mentorGroupsRequested);
     if (mentorGroupsRequested) fetchMentorGroupsList();
-  }, [searchParams]);
+  }, [searchParams, user?.role, user?.academic_track]);
+
+  useEffect(() => { setMentorGroupsPage(1); }, [mentorGroupsList.length, searchParams]);
+
+  const mentorGroupPageSize = 8;
+  const mentorGroupTotalPages = Math.max(1, Math.ceil(mentorGroupsList.length / mentorGroupPageSize));
+  const visibleMentorGroups = mentorGroupsList.slice((mentorGroupsPage - 1) * mentorGroupPageSize, mentorGroupsPage * mentorGroupPageSize);
 
   const fetchInviteMentorGroupsForClass = async (track, classYr) => {
     if (!track || !classYr) { setInviteMentorGroups([]); setInviteMentorGroupId(''); return; }
@@ -228,9 +243,10 @@ export default function AdminUsersPage() {
   };
 
   const openInviteModal = () => {
+    const track = user?.role === 'student_leader' ? user.academic_track || 'IB' : 'IB';
     setInviteRole(user?.role === 'student_leader' ? 'student_leader' : 'sv_committee');
-    setInviteTrack('IB');
-    const firstClass = getClassesForTrack('IB')[0]?.value || 'DP2';
+    setInviteTrack(track);
+    const firstClass = getClassesForTrack(track)[0]?.value || 'DP2';
     setInviteClass(firstClass);
     setInviteFullName('');
     setInviteEmail('');
@@ -239,9 +255,9 @@ export default function AdminUsersPage() {
     setInviteMentorGroups([]);
     setInviteMentorGroupId('');
     setShowInviteModal(true);
-    // Load mentors and mentor groups for the default track and class
-    fetchInviteMentors('IB', firstClass);
-    fetchInviteMentorGroupsForClass('IB', firstClass);
+    // Load mentors and mentor groups for this leader's assigned track.
+    fetchInviteMentors(track, firstClass);
+    fetchInviteMentorGroupsForClass(track, firstClass);
   };
 
   const fetchUsers = async () => {
@@ -418,8 +434,9 @@ export default function AdminUsersPage() {
                 onClick={() => {
                   setNewGroupName('');
                   setEditingGroup(null);
-                  setNewGroupTrack('IB');
-                  setNewGroupClass(getClassesForTrack('IB')[0]?.value || 'DP2');
+                  const track = user?.role === 'student_leader' ? user.academic_track || 'IB' : 'IB';
+                  setNewGroupTrack(track);
+                  setNewGroupClass(getClassesForTrack(track)[0]?.value || 'DP2');
                   setShowCreateGroupModal(true);
                 }}
                 className="flex items-center gap-1 px-3 py-1.5 bg-[#1a2b49] hover:bg-[#14223b] text-white text-[11px] font-semibold rounded-lg transition-colors cursor-pointer"
@@ -453,7 +470,7 @@ export default function AdminUsersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {mentorGroupsList.map((g) => (
+                  {visibleMentorGroups.map((g) => (
                     <tr key={g.id} className="hover:bg-[#f8fafb] transition-colors">
                       <td className="py-2.5 px-5 font-semibold text-[#0f172a]">{g.name}</td>
                       <td className="py-2.5 px-5">{g.academic_track || '—'}</td>
@@ -486,6 +503,16 @@ export default function AdminUsersPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+          {!loadingMentorGroups && mentorGroupsList.length > mentorGroupPageSize && (
+            <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-xs text-[#64748b]">
+              <span>Showing {((mentorGroupsPage - 1) * mentorGroupPageSize) + 1}–{Math.min(mentorGroupsPage * mentorGroupPageSize, mentorGroupsList.length)} of {mentorGroupsList.length} mentor groups</span>
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={() => setMentorGroupsPage((page) => Math.max(1, page - 1))} disabled={mentorGroupsPage === 1} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">← Prev</button>
+                <span className="px-2">{mentorGroupsPage} / {mentorGroupTotalPages}</span>
+                <button type="button" onClick={() => setMentorGroupsPage((page) => Math.min(mentorGroupTotalPages, page + 1))} disabled={mentorGroupsPage === mentorGroupTotalPages} className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">Next →</button>
+              </div>
             </div>
           )}
         </div>
@@ -611,7 +638,7 @@ export default function AdminUsersPage() {
                     </td>
 
                     <td className="py-3.5 px-5 text-right">
-                      {((user?.role === 'super_admin') || (user?.role === 'student_leader' && u.role === 'student')) && u.id !== user?.id && (
+                        {((user?.role === 'super_admin') || (user?.role === 'student_leader' && ['student', 'committee'].includes(u.role))) && u.id !== user?.id && (
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => openEditModal(u)}
@@ -754,7 +781,7 @@ export default function AdminUsersPage() {
                 <>
                   <div>
                     <label className="block text-xs font-semibold text-[#0f172a] mb-1">Academic Track</label>
-                    <select
+                    <select disabled={user?.role === 'student_leader'}
                       value={inviteTrack}
                       onChange={(e) => {
                         const nextTrack = e.target.value;
@@ -957,14 +984,7 @@ export default function AdminUsersPage() {
                     }
                   }}
                   className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-hidden focus:border-[#2383c9]">
-                  <option value="super_admin">Super Admin</option>
-                  <option value="sv_committee">SV &amp; Committee</option>
-                  <option value="teacher">Teacher</option>
-                  <option value="student_leader">Student Leader</option>
-                  <option value="committee">Committee</option>
-                  <option value="mentor">Mentor</option>
-                  <option value="student">Student</option>
-                  {user?.role === 'super_admin' && <option value="dj_team">DJ-TEAM</option>}
+                  {(user?.role === 'student_leader' ? ['student', 'committee'] : ['super_admin', 'sv_committee', 'teacher', 'student_leader', 'committee', 'mentor', 'student', ...(user?.role === 'super_admin' ? ['dj_team'] : [])]).map((role) => <option key={role} value={role}>{role === 'sv_committee' ? 'SV & Committee' : role === 'dj_team' ? 'DJ-TEAM' : role.replace('_', ' ')}</option>)}
                 </select>
               </div>
 
@@ -974,7 +994,7 @@ export default function AdminUsersPage() {
                 <>
                   <div>
                     <label className="block text-xs font-semibold text-[#0f172a] mb-1">Academic Track</label>
-                    <select value={editTrack}
+                <select disabled={user?.role === 'student_leader'} value={editTrack}
                       onChange={(e) => {
                         const nextTrack = e.target.value;
                         setEditTrack(nextTrack);
@@ -1166,7 +1186,7 @@ export default function AdminUsersPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-[#0f172a] mb-1">Academic Track</label>
-                <select
+                <select disabled={user?.role === 'student_leader'}
                   value={newGroupTrack}
                   onChange={(e) => {
                     const nextTrack = e.target.value;
