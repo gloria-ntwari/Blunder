@@ -25,7 +25,7 @@ export const getFoodMenu = async (req, res, next) => {
            WHEN 'lunch' THEN 2
            WHEN 'snack' THEN 3
            WHEN 'dinner' THEN 4
-         END`,
+         END, CASE fm.lunch_category WHEN 'normal' THEN 1 WHEN 'vegetarisch' THEN 2 WHEN 'dessert' THEN 3 ELSE 4 END`,
       params
     );
     res.json(result.rows);
@@ -43,7 +43,7 @@ export const getTodayMenu = async (req, res, next) => {
          WHEN 'lunch' THEN 2
          WHEN 'snack' THEN 3
          WHEN 'dinner' THEN 4
-       END`
+       END, CASE lunch_category WHEN 'normal' THEN 1 WHEN 'vegetarisch' THEN 2 WHEN 'dessert' THEN 3 ELSE 4 END`
     );
     res.json(result.rows);
   } catch (err) { next(err); }
@@ -70,8 +70,9 @@ const parseMenuItems = (rawItems) => {
 // ── POST /api/food ────────────────────────────────────────────────────────────
 export const createFoodMenu = async (req, res, next) => {
   try {
-    const { menu_date, meal_type, items, is_special_snack } = req.body;
-    let image_url = null;
+    const { menu_date, meal_type, lunch_category = 'normal', items, is_special_snack } = req.body;
+    if (!['normal', 'vegetarisch', 'dessert'].includes(lunch_category)) return res.status(400).json({ message: 'Choose a valid lunch section' });
+    let image_url = typeof req.body.image_url === 'string' && /^https?:\/\//i.test(req.body.image_url) ? req.body.image_url : null;
 
     if (req.file) {
       image_url = await uploadImage(req.file.buffer, 'blunder/food');
@@ -80,13 +81,13 @@ export const createFoodMenu = async (req, res, next) => {
     const parsed = parseMenuItems(items);
 
     const result = await query(
-      `INSERT INTO food_menu (menu_date, meal_type, items, image_url, is_special_snack, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (menu_date, meal_type) DO UPDATE
+      `INSERT INTO food_menu (menu_date, meal_type, lunch_category, items, image_url, is_special_snack, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (menu_date, meal_type, lunch_category) DO UPDATE
          SET items = EXCLUDED.items, image_url = COALESCE(EXCLUDED.image_url, food_menu.image_url),
              is_special_snack = EXCLUDED.is_special_snack, updated_at = NOW()
        RETURNING *`,
-      [menu_date, meal_type, JSON.stringify(parsed), image_url, is_special_snack || false, req.user.id]
+      [menu_date, meal_type, meal_type === 'lunch' ? lunch_category : 'normal', JSON.stringify(parsed), image_url, is_special_snack || false, req.user.id]
     );
 
     emitDataChanged(req.app.get('io'), 'food', result.rows[0]);
@@ -97,8 +98,9 @@ export const createFoodMenu = async (req, res, next) => {
 // ── PUT /api/food/:id ─────────────────────────────────────────────────────────
 export const updateFoodMenu = async (req, res, next) => {
   try {
-    const { items, is_special_snack } = req.body;
-    let image_url = undefined;
+    const { items, is_special_snack, lunch_category } = req.body;
+    if (lunch_category !== undefined && !['normal', 'vegetarisch', 'dessert'].includes(lunch_category)) return res.status(400).json({ message: 'Choose a valid lunch section' });
+    let image_url = typeof req.body.image_url === 'string' && /^https?:\/\//i.test(req.body.image_url) ? req.body.image_url : undefined;
 
     if (req.file) {
       image_url = await uploadImage(req.file.buffer, 'blunder/food');
@@ -111,9 +113,10 @@ export const updateFoodMenu = async (req, res, next) => {
        SET items = COALESCE($1, items),
            image_url = COALESCE($2, image_url),
            is_special_snack = COALESCE($3, is_special_snack),
+           lunch_category = COALESCE($4, lunch_category),
            updated_at = NOW()
-       WHERE id = $4 RETURNING *`,
-      [parsed, image_url, is_special_snack, req.params.id]
+       WHERE id = $5 RETURNING *`,
+      [parsed, image_url, is_special_snack, lunch_category, req.params.id]
     );
 
     if (!result.rows.length) return res.status(404).json({ message: 'Menu entry not found' });

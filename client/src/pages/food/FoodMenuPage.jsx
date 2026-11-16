@@ -31,6 +31,7 @@ export const getMealItemsList = (items) => {
   }
   return [];
 };
+const lunchCategoryLabel = (category) => ({ normal: 'Normal', vegetarisch: 'Vegetarisch', dessert: 'Dessert' }[category] || 'Normal');
 
 export default function FoodMenuPage() {
   const { t } = useTranslation();
@@ -47,10 +48,12 @@ export default function FoodMenuPage() {
 
   const [formDate, setFormDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [formMealType, setFormMealType] = useState('lunch');
+  const [formLunchCategory, setFormLunchCategory] = useState('normal');
   const [formItemsText, setFormItemsText] = useState('');
   const [formIsSpecial, setFormIsSpecial] = useState(false);
   const [formImage, setFormImage] = useState(null);
   const [formImagePreview, setFormImagePreview] = useState('');
+  const [formImageUrl, setFormImageUrl] = useState('');
 
   const [snackMessage, setSnackMessage] = useState('');
   const [snackExpires, setSnackExpires] = useState(60);
@@ -78,17 +81,22 @@ export default function FoodMenuPage() {
     if (existing) {
       setEditItem(existing);
       setFormDate(format(new Date(existing.menu_date), 'yyyy-MM-dd'));
+      setFormMealType(existing.meal_type);
+      setFormLunchCategory(existing.lunch_category || 'normal');
       const existingItems = getMealItemsList(existing.items);
       setFormItemsText(existingItems.join('\n'));
       setFormIsSpecial(existing.is_special_snack);
       setFormImagePreview(existing.image_url || '');
+      setFormImageUrl(existing.image_url || '');
     } else {
       setEditItem(null);
       setFormDate(selectedDate);
       setFormMealType('lunch');
+      setFormLunchCategory('normal');
       setFormItemsText('');
       setFormIsSpecial(false);
       setFormImagePreview('');
+      setFormImageUrl('');
     }
     setFormImage(null);
     setShowAddModal(true);
@@ -105,9 +113,11 @@ export default function FoodMenuPage() {
     const formData = new FormData();
     formData.append('menu_date', formDate);
     formData.append('meal_type', formMealType);
+    formData.append('lunch_category', formMealType === 'lunch' ? formLunchCategory : 'normal');
     formData.append('items', JSON.stringify(itemsArray));
     formData.append('is_special_snack', formIsSpecial);
     if (formImage) formData.append('image', formImage);
+    else if (formImageUrl) formData.append('image_url', formImageUrl);
 
     try {
       if (editItem) {
@@ -121,6 +131,29 @@ export default function FoodMenuPage() {
       fetchMenu();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error saving menu.');
+    }
+  };
+
+  const handlePasteFoodImage = (event) => {
+    const image = Array.from(event.clipboardData?.items || []).find((item) => item.type.startsWith('image/'));
+    if (image) {
+      const file = image.getAsFile();
+      if (!file) return;
+      event.preventDefault();
+      const pastedFile = new File([file], `food-${Date.now()}.${file.type.split('/')[1] || 'png'}`, { type: file.type });
+      setFormImage(pastedFile);
+      setFormImageUrl('');
+      setFormImagePreview(URL.createObjectURL(pastedFile));
+      toast.success('Image pasted');
+      return;
+    }
+    const pastedText = event.clipboardData?.getData('text/plain')?.trim();
+    if (/^https?:\/\//i.test(pastedText || '')) {
+      event.preventDefault();
+      setFormImage(null);
+      setFormImageUrl(pastedText);
+      setFormImagePreview(pastedText);
+      toast.success('Image link pasted');
     }
   };
 
@@ -285,7 +318,7 @@ export default function FoodMenuPage() {
 
                 <div className="absolute top-3 left-3 flex items-center gap-1.5">
                   <span className="px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-white/95 text-[#2383c9] shadow-xs backdrop-blur-xs">
-                    {meal.meal_type}
+                    {meal.meal_type === 'lunch' ? `Lunch · ${lunchCategoryLabel(meal.lunch_category)}` : meal.meal_type}
                   </span>
                   {meal.is_special_snack && (
                     <span className="px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-wider bg-[#f97316] text-white shadow-xs">
@@ -315,7 +348,7 @@ export default function FoodMenuPage() {
               <div className="p-5 flex-1 flex flex-col justify-between">
                 <div>
                   <h3 className="font-bold text-base text-[#0f172a] capitalize">
-                    {meal.meal_type} Buffet & Specials
+                    {meal.meal_type === 'lunch' ? `${lunchCategoryLabel(meal.lunch_category)} Lunch` : `${meal.meal_type} Buffet & Specials`}
                   </h3>
 
                   {(() => {
@@ -405,6 +438,21 @@ export default function FoodMenuPage() {
                 </select>
               </div>
 
+              {formMealType === 'lunch' && (
+                <div>
+                  <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">Lunch Section</label>
+                  <select
+                    value={formLunchCategory}
+                    onChange={(e) => setFormLunchCategory(e.target.value)}
+                    className="w-full bg-[#f8fafb] text-xs px-3.5 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:border-[#2383c9] transition-colors"
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="vegetarisch">Vegetarisch</option>
+                    <option value="dessert">Dessert</option>
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">
                   Menu Items <span className="font-normal text-[#64748b]">(one per line)</span>
@@ -434,12 +482,20 @@ export default function FoodMenuPage() {
                 <label className="block text-xs font-semibold text-[#0f172a] mb-1.5">
                   Food Photo <span className="font-normal text-[#64748b]">(optional)</span>
                 </label>
+                <div
+                  tabIndex={0}
+                  onPaste={handlePasteFoodImage}
+                  className="mb-2 rounded-lg border border-dashed border-[#2383c9]/40 bg-[#f8fafb] px-3 py-2.5 text-xs text-[#64748b] outline-none focus:border-[#2383c9]"
+                >
+                  Click here and paste a copied image with Ctrl+V / Cmd+V.
+                </div>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
                     if (e.target.files?.[0]) {
                       setFormImage(e.target.files[0]);
+                      setFormImageUrl('');
                       setFormImagePreview(URL.createObjectURL(e.target.files[0]));
                     }
                   }}

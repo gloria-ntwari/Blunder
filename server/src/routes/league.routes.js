@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate } from '../middlewares/auth.js';
-import { leagueState, searchLeagueUsers, createHouse, updateHouse, deleteHouse, addHousePlayer, updateHousePlayer, deleteHousePlayer, createFixture, recordGoal, deleteGoal, completeFixture } from '../controllers/league.controller.js';
+import { leagueState, searchLeagueUsers, createHouse, updateHouse, deleteHouse, addHousePlayer, updateHousePlayer, deleteHousePlayer, createFixture, recordGoal, deleteGoal, deleteFixtureResult, completeFixture } from '../controllers/league.controller.js';
 
 const router = express.Router();
 router.use(authenticate);
@@ -14,6 +14,7 @@ router.put('/houses/:id/players/:playerId', updateHousePlayer);
 router.delete('/houses/:id/players/:playerId', deleteHousePlayer);
 router.post('/fixtures', createFixture);
 router.post('/fixtures/:id/goals', recordGoal);
+router.delete('/fixtures/:id', deleteFixtureResult);
 router.post('/fixtures/:id/complete', completeFixture);
 router.delete('/goals/:id', deleteGoal);
 export default router;
