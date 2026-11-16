@@ -64,7 +64,7 @@ function Modal({ title, onClose, children }) {
   </SharedModal>;
 }
 
-export default function LungesligaPage() {
+export default function LandesligaPage() {
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState('fixtures');
   const [gender, setGender] = useState('girls');
@@ -87,7 +87,7 @@ export default function LungesligaPage() {
   const canAddPlayers = isManager || Boolean(myHouse);
   const refresh = useCallback(async () => {
     try { const { data } = await api.get('/league'); setState(data); }
-    catch (error) { toast.error(error.response?.data?.message || 'Could not load Lungesliga'); }
+    catch (error) { toast.error(error.response?.data?.message || 'Could not load Landesliga'); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
@@ -126,7 +126,7 @@ export default function LungesligaPage() {
 
   async function submit(action) {
     setSubmitting(true);
-    try { await action(); setModal(''); await refresh(); toast.success('Lungesliga updated'); }
+    try { await action(); setModal(''); await refresh(); toast.success('Landesliga updated'); }
     catch (error) { toast.error(error.response?.data?.message || 'Could not save changes'); }
     finally { setSubmitting(false); }
   }
@@ -157,8 +157,8 @@ export default function LungesligaPage() {
   );
 
   return <div className="mx-auto max-w-7xl space-y-6 pb-12 font-['Outfit'] animate-fade-in">
-    <header><h1 className="text-[30px] font-semibold leading-[37.5px] tracking-tight text-[#0f172a]">Lungesliga</h1><p className="mt-0.5 text-[16px] leading-6 text-[#64748b]">School football between the houses. Follow fixtures, results and goals.</p></header>
-    <nav aria-label="Lungesliga sections" className="flex gap-2 overflow-x-auto pb-1">
+    <header><h1 className="text-[30px] font-semibold leading-[37.5px] tracking-tight text-[#0f172a]">Landesliga</h1><p className="mt-0.5 text-[16px] leading-6 text-[#64748b]">School football between the houses. Follow fixtures, results and goals.</p></header>
+    <nav aria-label="Landesliga sections" className="flex gap-2 overflow-x-auto pb-1">
       {tabs.map(({ id, label, icon: Icon }) => <button key={id} type="button" onClick={() => setActiveTab(id)} className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-semibold transition ${activeTab === id ? 'bg-[#1a2b49] text-white shadow-xs' : 'border border-slate-200/70 bg-white text-[#64748b] hover:border-slate-300'}`}><Icon className="h-3.5 w-3.5" />{label}</button>)}
     </nav>
     <div className="flex flex-wrap items-center justify-between gap-3"><div className="inline-flex rounded-lg border border-slate-200 bg-white p-1" aria-label="Filter by gender">{['girls', 'boys'].map((value) => <button key={value} type="button" onClick={() => setGender(value)} className={`rounded-md px-4 py-2 text-xs font-semibold transition ${gender === value ? 'bg-[#e4f2fe] text-[#1a2b49]' : 'text-[#64748b] hover:bg-slate-50'}`}>{genderLabel(value)}</button>)}</div>
@@ -166,7 +166,7 @@ export default function LungesligaPage() {
       {activeTab === 'players' && canAddPlayers && <button type="button" onClick={() => { setEditingPlayer(null); setPlayer(null); setSelectedHouse(isManager ? '' : myHouse?.id || ''); startModal('player'); }} className={actionClass}><Plus className="h-3.5 w-3.5" /> Add player</button>}
       {activeTab === 'fixtures' && isCommittee && <button type="button" onClick={() => startModal('fixture')} className={actionClass}><Plus className="h-3.5 w-3.5" /> Add fixture</button>}
     </div>
-    {loading ? <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-sm text-[#64748b]">Loading Lungesliga…</div> : <>
+    {loading ? <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-sm text-[#64748b]">Loading Landesliga…</div> : <>
       {activeTab === 'fixtures' && <section className="grid gap-4 md:grid-cols-2">{fixtures.filter((fixture) => fixture.status !== 'completed').length ? fixtures.filter((fixture) => fixture.status !== 'completed').map((fixture) => <article key={fixture.id} className="rounded-xl border border-slate-200/70 bg-white p-5 shadow-xs"><div className="mb-4 flex items-center justify-between"><span className="rounded-full bg-[#e4f2fe] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#2383c9]">{genderLabel(fixture.gender)} football</span><span className="text-xs text-[#64748b]">Upcoming</span></div><div className="flex items-center justify-between gap-3"><p className="flex-1 text-right text-base font-semibold text-[#0f172a]">{fixture.home_name}</p><span className="text-xs font-bold text-slate-400">VS</span><p className="flex-1 text-base font-semibold text-[#0f172a]">{fixture.away_name}</p></div><div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs text-[#64748b]"><span>{dateLabel(fixture.match_date)}</span><span>{fixture.venue || 'Venue to be confirmed'}</span></div></article>) : <div className="col-span-full rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center"><CalendarDays className="mx-auto mb-3 h-8 w-8 text-slate-300" /><p className="font-semibold text-slate-800">No {genderLabel(gender).toLowerCase()} fixtures yet</p><p className="mt-1 text-sm text-slate-500">New fixtures from the SV Committee will appear here.</p></div>}</section>}
       {activeTab === 'results' && <section className="space-y-4">
         {resultFixtures.length ? resultFixtures.map((fixture) => <article key={fixture.id} className="rounded-xl border border-slate-200 bg-white p-3 shadow-xs sm:p-4">
