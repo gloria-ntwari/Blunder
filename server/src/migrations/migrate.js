@@ -15,7 +15,7 @@ const announcementTracksOnly = process.argv.includes('--announcement-tracks-only
 async function migrate() {
   try {
     console.log('Running migrations...');
-    const filesToRun = guildsOnly ? migrationFiles.filter((file) => file === '010_guilds.sql') : leagueOnly ? migrationFiles.filter((file) => file === '016_lundesliga.sql') : announcementTracksOnly ? migrationFiles.filter((file) => file === '017_announcement_tracks.sql') : migrationFiles;
+    const filesToRun = guildsOnly ? migrationFiles.filter((file) => file === '010_guilds.sql') : leagueOnly ? migrationFiles.filter((file) => file === '016_lungesliga.sql') : announcementTracksOnly ? migrationFiles.filter((file) => file === '017_announcement_tracks.sql') : migrationFiles;
     for (const file of filesToRun) {
       console.log(`Running ${file}...`);
       try {

@@ -4,7 +4,7 @@ const managementRoles = ['super_admin', 'sv_committee', 'committee'];
 const isManager = (req) => managementRoles.includes(req.user.role);
 const canView = (req, res) => {
   if (['teacher', 'admin'].includes(req.user.role)) {
-    res.status(403).json({ message: 'Landesliga is available to student accounts and league managers' });
+    res.status(403).json({ message: 'Lundesliga is available to student accounts and league managers' });
     return false;
   }
   return true;
