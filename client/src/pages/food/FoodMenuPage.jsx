@@ -9,7 +9,8 @@ import {
   Edit2,
   Trash2,
   X,
-  Upload
+  Upload,
+  ImagePlus
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../services/api';
@@ -157,6 +158,44 @@ export default function FoodMenuPage() {
     }
   };
 
+  const handleReadFoodClipboard = async () => {
+    if (!navigator.clipboard?.read) {
+      toast.error('Clipboard image access is not available in this browser. Use Paste from your phone keyboard in the box.');
+      return;
+    }
+
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        const imageType = item.types.find((type) => type.startsWith('image/'));
+        if (!imageType) continue;
+        const blob = await item.getType(imageType);
+        const pastedFile = new File([blob], `food-${Date.now()}.${imageType.split('/')[1] || 'png'}`, { type: imageType });
+        setFormImage(pastedFile);
+        setFormImageUrl('');
+        setFormImagePreview(URL.createObjectURL(pastedFile));
+        toast.success('Image pasted from clipboard');
+        return;
+      }
+      toast.error('No image found on the clipboard. Copy an image, then try again.');
+    } catch (error) {
+      if (error.name === 'NotAllowedError') {
+        toast.error('Clipboard access was blocked. Tap the box and choose Paste from your phone keyboard.');
+      } else {
+        toast.error('Could not read an image from the clipboard. Try Paste from your phone keyboard.');
+      }
+    }
+  };
+
+  const handleSelectFoodImage = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setFormImage(file);
+    setFormImageUrl('');
+    setFormImagePreview(URL.createObjectURL(file));
+    event.target.value = '';
+  };
+
   const handleDeleteMenu = async (id) => {
     setConfirmState({ open: true, id });
   };
@@ -226,7 +265,7 @@ export default function FoodMenuPage() {
               className="flex items-center gap-1.5 px-4 py-2 bg-[#1a2b49] hover:bg-[#14223b] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>{t('food.addMeal', '+ Add meal')}</span>
+              <span>{t('Add meal')}</span>
             </button>
           </div>
         )}
@@ -397,9 +436,6 @@ export default function FoodMenuPage() {
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#e4f2fe] text-[#2383c9] flex items-center justify-center shrink-0">
-                  <UtensilsCrossed className="w-4 h-4" />
-                </div>
                 <h3 className="font-bold text-[18px] text-[#0f172a]">
                   {editItem ? 'Edit Meal Entry' : 'Add New Meal'}
                 </h3>
@@ -487,20 +523,16 @@ export default function FoodMenuPage() {
                   onPaste={handlePasteFoodImage}
                   className="mb-2 rounded-lg border border-dashed border-[#2383c9]/40 bg-[#f8fafb] px-3 py-2.5 text-xs text-[#64748b] outline-none focus:border-[#2383c9]"
                 >
-                  Click here and paste a copied image with Ctrl+V / Cmd+V.
+                  <p>Paste an image here with Ctrl+V, or use the button to paste from your phone clipboard.</p>
+                  <button type="button" onClick={handleReadFoodClipboard} className="mt-2 min-h-5 rounded-md bg-white px-3 py-2 font-semibold text-[#2383c9] shadow-sm ring-1 ring-[#2383c9]/20 hover:bg-[#e4f2fe]">
+                    Paste from clipboard
+                  </button>
                 </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files?.[0]) {
-                      setFormImage(e.target.files[0]);
-                      setFormImageUrl('');
-                      setFormImagePreview(URL.createObjectURL(e.target.files[0]));
-                    }
-                  }}
-                  className="text-xs text-[#64748b] file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#e4f2fe] file:text-[#2383c9] hover:file:bg-[#2383c9] hover:file:text-white file:transition-colors"
-                />
+                <label className="flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[#2383c9]/30 bg-[#e4f2fe] px-4 py-2.5 text-sm font-semibold text-[#1a2b49] transition-colors hover:bg-[#d6ebfc]">
+                  <ImagePlus className="h-4 w-4 text-[#2383c9]" />
+                  {formImagePreview ? 'Choose a different photo' : 'Tap to choose a photo'}
+                  <input type="file" accept="image/*" capture="environment" onChange={handleSelectFoodImage} className="sr-only" />
+                </label>
                 {formImagePreview && (
                   <img
                     src={formImagePreview}
