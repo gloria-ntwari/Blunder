@@ -16,7 +16,7 @@ const taxiOnly = process.argv.includes('--taxi-only');
 async function migrate() {
   try {
     console.log('Running migrations...');
-    const filesToRun = guildsOnly ? migrationFiles.filter((file) => file === '010_guilds.sql') : leagueOnly ? migrationFiles.filter((file) => ['016_lungesliga.sql', '019_league_delete_history.sql', '020_remove_orphan_league_goals.sql', '021_league_house_categories.sql'].includes(file)) : announcementTracksOnly ? migrationFiles.filter((file) => file === '017_announcement_tracks.sql') : taxiOnly ? migrationFiles.filter((file) => ['022_lost_found_auto_cleanup_and_taxi.sql', '023_taxi_request_seats.sql', '024_taxi_seat_request_board.sql'].includes(file)) : migrationFiles;
+    const filesToRun = guildsOnly ? migrationFiles.filter((file) => file === '010_guilds.sql') : leagueOnly ? migrationFiles.filter((file) => ['016_lungesliga.sql', '019_league_delete_history.sql', '020_remove_orphan_league_goals.sql', '021_league_house_categories.sql', '025_lundesliga_common_houses.sql'].includes(file)) : announcementTracksOnly ? migrationFiles.filter((file) => file === '017_announcement_tracks.sql') : taxiOnly ? migrationFiles.filter((file) => ['022_lost_found_auto_cleanup_and_taxi.sql', '023_taxi_request_seats.sql', '024_taxi_seat_request_board.sql'].includes(file)) : migrationFiles;
     for (const file of filesToRun) {
       console.log(`Running ${file}...`);
       try {

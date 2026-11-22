@@ -28,13 +28,17 @@ export const searchLeagueUsers = async (req, res, next) => {
 export const leagueState = async (req, res, next) => {
   if (!canView(req, res)) return;
   try {
+    const safeQuery = (label, sql) => query(sql).catch((err) => {
+      console.error(`[Lundesliga] Could not load ${label}:`, err.message);
+      return { rows: [] };
+    });
     const [houses, fixtures, goals] = await Promise.all([
-      query(`SELECT h.id, h.name, h.gender, h.leader_id, leader.full_name AS leader_name,
+      safeQuery('houses', `SELECT h.id, h.name, h.leader_id, leader.full_name AS leader_name,
                     COALESCE(jsonb_agg(DISTINCT jsonb_build_object('id', p.id, 'user_id', p.user_id, 'full_name', player.full_name, 'avatar_url', player.avatar_url, 'gender', p.gender)) FILTER (WHERE p.id IS NOT NULL), '[]'::jsonb) AS players
              FROM league_houses h JOIN users leader ON leader.id = h.leader_id
              LEFT JOIN league_players p ON p.house_id = h.id LEFT JOIN users player ON player.id = p.user_id
              GROUP BY h.id, leader.full_name ORDER BY h.name`),
-      query(`SELECT f.id, f.home_house_id, COALESCE(home.name, f.home_house_name) AS home_name,
+      safeQuery('fixtures', `SELECT f.id, f.home_house_id, COALESCE(home.name, f.home_house_name) AS home_name,
                     f.away_house_id, COALESCE(away.name, f.away_house_name) AS away_name,
                     f.gender, f.match_date, f.venue, f.status, f.created_by,
                     COUNT(g.id) FILTER (WHERE g.scoring_house_id = f.home_house_id OR (f.home_house_id IS NULL AND g.house_name = f.home_house_name))::int AS home_score,
@@ -43,7 +47,7 @@ export const leagueState = async (req, res, next) => {
              LEFT JOIN league_houses away ON away.id=f.away_house_id
              LEFT JOIN league_goals g ON g.fixture_id=f.id
              GROUP BY f.id, home.name, away.name ORDER BY f.match_date NULLS LAST, f.created_at DESC`),
-      query(`SELECT g.id, g.fixture_id, g.player_id, p.user_id,
+      safeQuery('scorers', `SELECT g.id, g.fixture_id, g.player_id, p.user_id,
                     COALESCE(g.player_name, u.full_name) AS player_name,
                     p.gender, COALESCE(g.scoring_house_id, h.id) AS house_id,
                     COALESCE(g.house_name, h.name) AS house_name, f.gender AS fixture_gender
@@ -52,7 +56,8 @@ export const leagueState = async (req, res, next) => {
              JOIN league_fixtures f ON f.id=g.fixture_id
              ORDER BY g.created_at`),
     ]);
-    const standings = await query(`SELECT h.id, h.name, h.gender,
+    let standings = { rows: [] };
+    try { standings = await query(`SELECT h.id, h.name, h.gender,
              COUNT(DISTINCT f.id) FILTER (WHERE f.status='completed' AND (f.home_house_id=h.id OR f.away_house_id=h.id))::int AS played,
              COUNT(DISTINCT f.id) FILTER (WHERE f.status='completed' AND ((f.home_house_id=h.id AND COALESCE(hs.home_score,0)>COALESCE(hs.away_score,0)) OR (f.away_house_id=h.id AND COALESCE(hs.away_score,0)>COALESCE(hs.home_score,0))))::int AS wins,
              COUNT(DISTINCT f.id) FILTER (WHERE f.status='completed' AND ((f.home_house_id=h.id AND COALESCE(hs.home_score,0)=COALESCE(hs.away_score,0)) OR (f.away_house_id=h.id AND COALESCE(hs.home_score,0)=COALESCE(hs.away_score,0))))::int AS draws,
@@ -64,7 +69,8 @@ export const leagueState = async (req, res, next) => {
              LEFT JOIN (SELECT fixture_id, COUNT(*) FILTER (WHERE scoring_house_id=home_house_id OR (home_house_id IS NULL AND house_name=home_house_name)) AS home_score,
                                COUNT(*) FILTER (WHERE scoring_house_id=away_house_id OR (away_house_id IS NULL AND house_name=away_house_name)) AS away_score
                         FROM league_goals g JOIN league_fixtures f USING (fixture_id) GROUP BY fixture_id) hs ON hs.fixture_id=f.id
-             GROUP BY h.id ORDER BY points DESC, (COALESCE(SUM(CASE WHEN f.status='completed' AND f.home_house_id=h.id THEN COALESCE(hs.home_score,0) WHEN f.status='completed' AND f.away_house_id=h.id THEN COALESCE(hs.away_score,0) ELSE 0 END),0)-COALESCE(SUM(CASE WHEN f.status='completed' AND f.home_house_id=h.id THEN COALESCE(hs.away_score,0) WHEN f.status='completed' AND f.away_house_id=h.id THEN COALESCE(hs.home_score,0) ELSE 0 END),0)) DESC, goals_for DESC, h.name`);
+             GROUP BY h.id ORDER BY points DESC, (COALESCE(SUM(CASE WHEN f.status='completed' AND f.home_house_id=h.id THEN COALESCE(hs.home_score,0) WHEN f.status='completed' AND f.away_house_id=h.id THEN COALESCE(hs.away_score,0) ELSE 0 END),0)-COALESCE(SUM(CASE WHEN f.status='completed' AND f.home_house_id=h.id THEN COALESCE(hs.away_score,0) WHEN f.status='completed' AND f.away_house_id=h.id THEN COALESCE(hs.home_score,0) ELSE 0 END),0)) DESC, goals_for DESC, h.name`); }
+    catch (standingsError) { console.error('[Lundesliga] Could not load standings:', standingsError.message); }
     res.json({ houses: houses.rows, fixtures: fixtures.rows, goals: goals.rows, standings: standings.rows, canManage: isManager(req), userId: req.user.id });
   } catch (err) { next(err); }
 };
@@ -72,13 +78,12 @@ export const leagueState = async (req, res, next) => {
 export const createHouse = async (req, res, next) => {
   if (!isManager(req)) return res.status(403).json({ message: 'Only the Super Admin and SV Committee can manage houses' });
   const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
-  const gender = req.body.gender;
   const leaderId = req.body.leaderId;
-  if (!name || !leaderId || !['girls', 'boys'].includes(gender)) return res.status(400).json({ message: 'House name, category, and leader are required' });
+  if (!name || !leaderId) return res.status(400).json({ message: 'House name and leader are required' });
   try {
     const leader = await query('SELECT id FROM users WHERE id=$1 AND is_active=TRUE', [leaderId]);
     if (!leader.rows.length) return res.status(400).json({ message: 'Choose an active user as house leader' });
-    const result = await query('INSERT INTO league_houses (name, gender, leader_id, created_by) VALUES ($1,$2,$3,$4) RETURNING id,name,gender,leader_id', [name, gender, leaderId, req.user.id]);
+    const result = await query("INSERT INTO league_houses (name, gender, leader_id, created_by) VALUES ($1,'girls',$2,$3) RETURNING id,name,leader_id", [name, leaderId, req.user.id]);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ message: 'A house with this name already exists' });
@@ -89,16 +94,14 @@ export const createHouse = async (req, res, next) => {
 export const updateHouse = async (req, res, next) => {
   if (!isManager(req)) return res.status(403).json({ message: 'Only league managers can edit houses' });
   const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
-  const gender = req.body.gender;
   const leaderId = req.body.leaderId;
-  if (!name || !leaderId || !['girls', 'boys'].includes(gender)) return res.status(400).json({ message: 'House name, category, and leader are required' });
+  if (!name || !leaderId) return res.status(400).json({ message: 'House name and leader are required' });
   try {
     const leader = await query('SELECT id FROM users WHERE id=$1 AND is_active=TRUE', [leaderId]);
     if (!leader.rows.length) return res.status(400).json({ message: 'Choose an active user as house leader' });
-    const result = await query('UPDATE league_houses SET name=$1, gender=$2, leader_id=$3 WHERE id=$4 AND NOT EXISTS (SELECT 1 FROM league_players WHERE house_id=$4 AND gender<>$2) AND NOT EXISTS (SELECT 1 FROM league_fixtures WHERE (home_house_id=$4 OR away_house_id=$4) AND gender<>$2) RETURNING id,name,gender,leader_id', [name, gender, leaderId, req.params.id]);
+    const result = await query('UPDATE league_houses SET name=$1, leader_id=$2 WHERE id=$3 RETURNING id,name,leader_id', [name, leaderId, req.params.id]);
     if (!result.rows.length) {
-      const existing = await query('SELECT id FROM league_houses WHERE id=$1', [req.params.id]);
-      return res.status(existing.rows.length ? 409 : 404).json({ message: existing.rows.length ? 'House category cannot change while it has players or fixtures in the other category' : 'House not found' });
+      return res.status(404).json({ message: 'House not found' });
     }
     res.json(result.rows[0]);
   } catch (err) {
@@ -133,11 +136,10 @@ export const addHousePlayer = async (req, res, next) => {
   const { userId, gender } = req.body;
   if (!['girls', 'boys'].includes(gender) || !userId) return res.status(400).json({ message: 'Choose a player and girls or boys category' });
   try {
-    const houseResult = await query('SELECT id, leader_id, gender FROM league_houses WHERE id=$1', [req.params.id]);
+    const houseResult = await query('SELECT id, leader_id FROM league_houses WHERE id=$1', [req.params.id]);
     if (!houseResult.rows.length) return res.status(404).json({ message: 'House not found' });
     const house = houseResult.rows[0];
     if (!isManager(req) && house.leader_id !== req.user.id) return res.status(403).json({ message: 'Only this house leader or a league manager can add players' });
-    if (house.gender !== gender) return res.status(400).json({ message: 'Player category must match the house category' });
     const player = await query('SELECT id FROM users WHERE id=$1 AND is_active=TRUE', [userId]);
     if (!player.rows.length) return res.status(400).json({ message: 'Choose an active user' });
     const result = await query('INSERT INTO league_players (house_id,user_id,gender,added_by) VALUES ($1,$2,$3,$4) RETURNING *', [house.id, userId, gender, req.user.id]);
@@ -149,10 +151,9 @@ export const updateHousePlayer = async (req, res, next) => {
   const { userId, gender } = req.body;
   if (!['girls', 'boys'].includes(gender) || !userId) return res.status(400).json({ message: 'Choose a player and girls or boys category' });
   try {
-    const houseResult = await query('SELECT id, leader_id, gender FROM league_houses WHERE id=$1', [req.params.id]);
+    const houseResult = await query('SELECT id, leader_id FROM league_houses WHERE id=$1', [req.params.id]);
     if (!houseResult.rows.length) return res.status(404).json({ message: 'House not found' });
     if (!isManager(req) && houseResult.rows[0].leader_id !== req.user.id) return res.status(403).json({ message: 'Only this house leader or a league manager can edit its players' });
-    if (houseResult.rows[0].gender !== gender) return res.status(400).json({ message: 'Player category must match the house category' });
     const player = await query('SELECT id FROM users WHERE id=$1 AND is_active=TRUE', [userId]);
     if (!player.rows.length) return res.status(400).json({ message: 'Choose an active user' });
     const result = await query(`UPDATE league_players SET user_id=$1, gender=$2 WHERE id=$3 AND house_id=$4 RETURNING *`, [userId, gender, req.params.playerId, req.params.id]);
@@ -189,7 +190,7 @@ export const createFixture = async (req, res, next) => {
     const result = await query(`INSERT INTO league_fixtures
       (home_house_id,away_house_id,home_house_name,away_house_name,gender,match_date,venue,created_by)
       SELECT home.id,away.id,home.name,away.name,$3,$4,$5,$6
-      FROM league_houses home, league_houses away WHERE home.id=$1 AND away.id=$2 AND home.gender=$3 AND away.gender=$3
+      FROM league_houses home, league_houses away WHERE home.id=$1 AND away.id=$2
       RETURNING *`, [homeHouseId, awayHouseId, gender, matchDate || null, venue?.trim() || null, req.user.id]);
     if (!result.rows.length) return res.status(400).json({ message: 'Choose two houses from the selected category for the fixture' });
     res.status(201).json(result.rows[0]);

@@ -9,6 +9,7 @@
     "start": "node index.js",
     "migrate": "node src/migrations/migrate.js",
     "migrate:guilds": "node src/migrations/migrate.js --guilds-only",
+    "migrate:taxi": "node src/migrations/migrate.js --taxi-only",
     "seed": "node src/seeds/superAdmin.js"
   },
   "keywords": [],
