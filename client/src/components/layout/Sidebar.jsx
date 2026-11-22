@@ -163,7 +163,7 @@ export default function Sidebar({ isOpen = false, onClose = () => {}, collapsed 
             )}
           </NavLink>
 
-          {['student', 'student_leader', 'sv_committee', 'committee', 'super_admin'].includes(role) && (
+          {['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'teacher', 'super_admin'].includes(role) && (
             <NavLink to="/lundesliga" onClick={onClose} title="Lundesliga" className={({ isActive }) => navLinkClass(isActive)}>
               {({ isActive }) => <>{isActive && indicator}<Trophy className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} /><span className={collapsed ? 'lg:hidden' : ''}>Lundesliga</span></>}
             </NavLink>

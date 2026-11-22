@@ -80,7 +80,7 @@ function AppInner() {
           <Route path="/lost-found" element={<LostFoundPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/deadlines" element={<DeadlinesPage />} />
-          <Route path="/lundesliga" element={['student', 'student_leader', 'sv_committee', 'committee', 'super_admin'].includes(user?.role) ? <LundesligaPage /> : <Navigate to="/dashboard" replace />} />
+          <Route path="/lundesliga" element={['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'teacher', 'super_admin'].includes(user?.role) ? <LundesligaPage /> : <Navigate to="/dashboard" replace />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/schuelerhaus" element={user?.role !== 'teacher' ? <SchulhausPage /> : <Navigate to="/dashboard" replace />} />
           <Route path="/schulhaus" element={<Navigate to="/schuelerhaus" replace />} />
