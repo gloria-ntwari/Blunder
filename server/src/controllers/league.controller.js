@@ -1,4 +1,7 @@
 import pool, { query } from '../config/db.js';
+import { emitLiveUpdate } from '../socket/index.js';
+
+const leagueChanged = (req) => emitLiveUpdate(req.app.get('io'), 'lundesliga');
 
 const managementRoles = ['super_admin', 'sv_committee', 'committee'];
 const isManager = (req) => managementRoles.includes(req.user.role);
@@ -85,6 +88,7 @@ export const createHouse = async (req, res, next) => {
     if (!leader.rows.length) return res.status(400).json({ message: 'Choose an active user as house leader' });
     const result = await query("INSERT INTO league_houses (name, gender, leader_id, created_by) VALUES ($1,'girls',$2,$3) RETURNING id,name,leader_id", [name, leaderId, req.user.id]);
     res.status(201).json(result.rows[0]);
+    leagueChanged(req);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ message: 'A house with this name already exists' });
     next(err);
@@ -104,6 +108,7 @@ export const updateHouse = async (req, res, next) => {
       return res.status(404).json({ message: 'House not found' });
     }
     res.json(result.rows[0]);
+    leagueChanged(req);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ message: 'A house with this name already exists' });
     if (err.code === '23503') return res.status(409).json({ message: 'Choose an active house leader before saving changes' });
@@ -124,6 +129,7 @@ export const deleteHouse = async (req, res, next) => {
     const result = await query('DELETE FROM league_houses WHERE id=$1 RETURNING id', [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ message: 'House not found' });
     res.json({ message: 'House deleted' });
+    leagueChanged(req);
   } catch (err) {
     if (err.code === '23503' || err.constraint === 'league_fixtures_home_house_id_fkey' || err.constraint === 'league_fixtures_away_house_id_fkey') {
       return res.status(409).json({ message: 'This house is still referenced by a fixture. Refresh the page and remove upcoming fixtures before deleting it.' });
@@ -144,6 +150,7 @@ export const addHousePlayer = async (req, res, next) => {
     if (!player.rows.length) return res.status(400).json({ message: 'Choose an active user' });
     const result = await query('INSERT INTO league_players (house_id,user_id,gender,added_by) VALUES ($1,$2,$3,$4) RETURNING *', [house.id, userId, gender, req.user.id]);
     res.status(201).json(result.rows[0]);
+    leagueChanged(req);
   } catch (err) { if (err.code === '23505') return res.status(409).json({ message: 'This player is already in that house' }); next(err); }
 };
 
@@ -159,6 +166,7 @@ export const updateHousePlayer = async (req, res, next) => {
     const result = await query(`UPDATE league_players SET user_id=$1, gender=$2 WHERE id=$3 AND house_id=$4 RETURNING *`, [userId, gender, req.params.playerId, req.params.id]);
     if (!result.rows.length) return res.status(404).json({ message: 'Player not found in this house' });
     res.json(result.rows[0]);
+    leagueChanged(req);
   } catch (err) { if (err.code === '23505') return res.status(409).json({ message: 'This player is already in that house' }); next(err); }
 };
 
@@ -175,6 +183,7 @@ export const deleteHousePlayer = async (req, res, next) => {
     await client.query('DELETE FROM league_players WHERE id=$1 AND house_id=$2', [req.params.playerId, req.params.id]);
     await client.query('COMMIT');
     res.json({ message: 'Player removed from the house and their goals were removed from the scores' });
+    leagueChanged(req);
   } catch (err) {
     await client.query('ROLLBACK');
     if (err.code === '23503') return res.status(409).json({ message: 'This player is still referenced by match history and could not be removed' });
@@ -194,6 +203,7 @@ export const createFixture = async (req, res, next) => {
       RETURNING *`, [homeHouseId, awayHouseId, gender, matchDate || null, venue?.trim() || null, req.user.id]);
     if (!result.rows.length) return res.status(400).json({ message: 'Choose two houses from the selected category for the fixture' });
     res.status(201).json(result.rows[0]);
+    leagueChanged(req);
   } catch (err) { if (err.code === '23503') return res.status(400).json({ message: 'Choose existing houses' }); next(err); }
 };
 
@@ -217,6 +227,7 @@ export const recordGoal = async (req, res, next) => {
       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`, [match.id, playerId, req.user.id, scorer.rows[0].player_name, scorer.rows[0].house_name, scorer.rows[0].house_id]);
     await client.query('COMMIT');
     res.status(201).json(goal.rows[0]);
+    leagueChanged(req);
   } catch (err) { await client.query('ROLLBACK'); next(err); }
   finally { client.release(); }
 };
@@ -227,6 +238,7 @@ export const deleteGoal = async (req, res, next) => {
     const result = await query('DELETE FROM league_goals WHERE id=$1 RETURNING id', [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ message: 'Goal not found' });
     res.json({ message: 'Goal removed' });
+    leagueChanged(req);
   } catch (err) { next(err); }
 };
 
@@ -239,7 +251,7 @@ export const deleteFixtureResult = async (req, res, next) => {
        RETURNING id`,
       [req.params.id, req.user.id]
     );
-    if (result.rows.length) return res.json({ message: 'Result and its recorded goals deleted' });
+    if (result.rows.length) { res.json({ message: 'Result and its recorded goals deleted' }); leagueChanged(req); return; }
 
     const existing = await query('SELECT created_by, status FROM league_fixtures WHERE id=$1', [req.params.id]);
     if (!existing.rows.length) return res.status(404).json({ message: 'Result not found' });
@@ -257,5 +269,6 @@ export const completeFixture = async (req, res, next) => {
       return res.status(existing.rows.length ? 409 : 404).json({ message: existing.rows.length ? 'This match is already complete' : 'Fixture not found' });
     }
     res.json({ message: 'Result finalized' });
+    leagueChanged(req);
   } catch (err) { next(err); }
 };

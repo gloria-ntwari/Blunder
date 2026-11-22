@@ -93,6 +93,13 @@ export default function LundesligaPage() {
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
   useEffect(() => {
+    const handleLiveUpdate = (event) => {
+      if (event.detail?.entity === 'lundesliga') refresh();
+    };
+    window.addEventListener('blunder:data-changed', handleLiveUpdate);
+    return () => window.removeEventListener('blunder:data-changed', handleLiveUpdate);
+  }, [refresh]);
+  useEffect(() => {
     if (!selectedHouseView) return;
     const updatedHouse = state.houses.find((house) => house.id === selectedHouseView.id);
     if (updatedHouse && updatedHouse !== selectedHouseView) setSelectedHouseView(updatedHouse);

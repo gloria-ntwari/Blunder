@@ -1,4 +1,7 @@
 import pool, { query } from '../config/db.js';
+import { emitLiveUpdate } from '../socket/index.js';
+
+const taxiChanged = (req) => emitLiveUpdate(req.app.get('io'), 'taxi');
 
 const validRideType = (value) => ['offer', 'join'].includes(value);
 
@@ -29,6 +32,7 @@ export const createRide = async (req, res, next) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$7) RETURNING *`,
     [req.user.id, ride_type, departure.trim(), destination.trim(), departure_at || null, notes?.trim() || null, seats]);
     res.status(201).json(result.rows[0]);
+    taxiChanged(req);
   } catch (err) { next(err); }
 };
 
@@ -43,6 +47,7 @@ export const requestRide = async (req, res, next) => {
     if (!Number.isInteger(seatsRequested) || seatsRequested < 1 || seatsRequested > 20) return res.status(400).json({ message: 'Request between 1 and 20 seats' });
     const result = await query('INSERT INTO taxi_ride_requests (ride_id, requester_id, seats_requested) VALUES ($1,$2,$3) RETURNING *', [req.params.id, req.user.id, seatsRequested]);
     res.status(201).json(result.rows[0]);
+    taxiChanged(req);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ message: 'You already requested this ride' });
     next(err);
@@ -71,6 +76,7 @@ export const decideRequest = async (req, res, next) => {
     const result = await client.query('UPDATE taxi_ride_requests SET status=$1 WHERE id=$2 RETURNING *', [decision, req.params.requestId]);
     await client.query('COMMIT');
     res.json(result.rows[0]);
+    taxiChanged(req);
   } catch (err) { await client.query('ROLLBACK'); next(err); }
   finally { client.release(); }
 };
@@ -88,6 +94,7 @@ export const joinRide = async (req, res, next) => {
     await client.query("UPDATE taxi_rides SET available_seats=available_seats-1, status=CASE WHEN available_seats=1 THEN 'full' ELSE 'open' END WHERE id=$1", [req.params.id]);
     await client.query('COMMIT');
     res.status(201).json({ message: 'You joined the ride' });
+    taxiChanged(req);
   } catch (err) {
     await client.query('ROLLBACK');
     if (err.code === '23505') return res.status(409).json({ message: 'You already joined or requested this ride' });
@@ -100,6 +107,7 @@ export const cancelRide = async (req, res, next) => {
     const result = await query("UPDATE taxi_rides SET status='cancelled' WHERE id=$1 AND posted_by=$2 RETURNING id", [req.params.id, req.user.id]);
     if (!result.rows.length) return res.status(404).json({ message: 'Ride not found or you did not post it' });
     res.json({ message: 'Ride removed' });
+    taxiChanged(req);
   } catch (err) { next(err); }
 };
 
@@ -130,6 +138,7 @@ export const createSeatRequest = async (req, res, next) => {
       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
     [req.user.id, departure.trim(), destination.trim(), departure_at || null, seats, notes?.trim() || null]);
     res.status(201).json(result.rows[0]);
+    taxiChanged(req);
   } catch (err) { next(err); }
 };
 
@@ -145,6 +154,7 @@ export const offerSeats = async (req, res, next) => {
     const result = await query(`INSERT INTO taxi_seat_offers (seat_request_id, driver_id, message, seats_offered)
       VALUES ($1,$2,$3,$4) RETURNING *`, [req.params.id, req.user.id, message?.trim() || null, seats]);
     res.status(201).json(result.rows[0]);
+    taxiChanged(req);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ message: 'You have already offered seats on this request' });
     next(err);
@@ -178,6 +188,7 @@ export const decideSeatOffer = async (req, res, next) => {
     }
     await client.query('COMMIT');
     res.json({ message: decision === 'accepted' ? 'Seat offer accepted' : 'Seat offer declined' });
+    taxiChanged(req);
   } catch (err) { await client.query('ROLLBACK'); next(err); }
   finally { client.release(); }
 };
@@ -187,5 +198,6 @@ export const cancelSeatRequest = async (req, res, next) => {
     const result = await query("UPDATE taxi_seat_requests SET status='cancelled' WHERE id=$1 AND requester_id=$2 RETURNING id", [req.params.id, req.user.id]);
     if (!result.rows.length) return res.status(404).json({ message: 'Seat request not found or you did not post it' });
     res.json({ message: 'Seat request removed' });
+    taxiChanged(req);
   } catch (err) { next(err); }
 };

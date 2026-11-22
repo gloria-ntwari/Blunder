@@ -77,6 +77,10 @@ export const emitSchulhausChanged = (io) => {
   io.to('all').emit('schulhaus_changed');
 };
 
+export const emitLiveUpdate = (io, entity) => {
+  io?.to('all').emit('data_changed', { entity, action: 'updated' });
+};
+
 /**
  * Emit a private notification to a specific user
  */
