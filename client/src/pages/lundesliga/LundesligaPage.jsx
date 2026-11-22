@@ -227,21 +227,12 @@ export default function LundesligaPage() {
             <button type="button" onClick={() => setDeleteTarget({ type: 'house', house: selectedHouseView })} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3.5 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"><Trash2 className="h-3.5 w-3.5" /> Delete</button>
           </div>}
         </div>
-        {selectedHouseView.players?.length ? <div className="grid gap-6 md:grid-cols-2">
-          {['girls', 'boys'].map((category) => {
-            const housePlayers = selectedHouseView.players.filter((item) => item.gender === category);
-            return <section key={category} className="rounded-xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-3 text-base font-semibold text-[#0f172a]">{genderLabel(category)} players <span className="text-sm font-normal text-[#64748b]">· {housePlayers.length}</span></h3>
-              {housePlayers.length ? <div className="space-y-2">{housePlayers.map((item) => <article key={item.id} className="flex items-center gap-3 rounded-lg border border-slate-100 p-2">
-                <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[#e4f2fe]">{item.avatar_url ? <img src={item.avatar_url} alt={item.full_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-[#2383c9]"><CircleUserRound className="h-8 w-8" /></div>}</div>
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#0f172a]">{item.full_name}</span>
-                {(isManager || selectedHouseView.leader_id === user?.id) && <div className="flex shrink-0">
-                  <button type="button" onClick={() => openPlayerEdit(selectedHouseView, item)} aria-label={`Edit ${item.full_name}`} className="rounded-md p-1.5 text-slate-500 hover:bg-[#e4f2fe]"><Pencil className="h-3.5 w-3.5" /></button>
-                  <button type="button" onClick={() => setDeleteTarget({ type: 'player', houseId: selectedHouseView.id, player: item })} aria-label={`Remove ${item.full_name}`} className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button>
-                </div>}
-              </article>)}</div> : <p className="rounded-lg bg-[#f8fafb] px-3 py-5 text-center text-sm text-slate-500">No {category} players are registered in {selectedHouseView.name}.</p>}
-            </section>;
-          })}
+        {selectedHouseView.players?.length ? <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          {selectedHouseView.players.map((item) => <article key={item.id} className="flex min-h-[76px] items-center gap-3 border border-slate-200 bg-white p-2 shadow-xs">
+            <div className="h-14 w-14 shrink-0 overflow-hidden border border-slate-200 bg-[#e4f2fe]">{item.avatar_url ? <img src={item.avatar_url} alt={item.full_name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-[#9aa8b8]"><CircleUserRound className="h-10 w-10 stroke-[1.2]" /></div>}</div>
+            <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-[#0f172a]" title={item.full_name}>{item.full_name}</p><p className="mt-0.5 truncate text-xs text-[#64748b]">{selectedHouseView.name} · {genderLabel(item.gender)}</p></div>
+            {(isManager || selectedHouseView.leader_id === user?.id) && <div className="flex shrink-0 gap-0.5"><button type="button" onClick={() => openPlayerEdit(selectedHouseView, item)} aria-label={`Edit ${item.full_name}`} className="rounded-md p-1.5 text-[#64748b] hover:bg-[#e4f2fe] hover:text-[#2383c9]"><Pencil className="h-3.5 w-3.5" /></button><button type="button" onClick={() => setDeleteTarget({ type: 'player', houseId: selectedHouseView.id, player: item })} aria-label={`Remove ${item.full_name}`} className="rounded-md p-1.5 text-[#64748b] hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></button></div>}
+          </article>)}
         </div> : <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
           <Users className="mx-auto mb-3 h-8 w-8 text-slate-300" />
           <p className="font-semibold text-slate-800">No players in {selectedHouseView.name} yet</p>
