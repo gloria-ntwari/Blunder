@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   Music2,
   Trophy,
+  CarFront,
 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
@@ -71,7 +72,7 @@ export default function Sidebar({ isOpen = false, onClose = () => {}, collapsed 
             <X className="w-5 h-5" />
           </button>
         </div>
-      <div>
+      <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className={`px-3 py-4 space-y-1 ${collapsed ? 'lg:px-2' : ''}`}>
 
           {/* Overview — everyone */}
@@ -150,6 +151,10 @@ export default function Sidebar({ isOpen = false, onClose = () => {}, collapsed 
                 <span className={collapsed ? 'lg:hidden' : ''}>{t('nav.calendar', 'Calendar')}</span>
               </>
             )}
+          </NavLink>
+
+          <NavLink to="/taxi" onClick={onClose} title="Taxi Bookings" className={({ isActive }) => navLinkClass(isActive)}>
+            {({ isActive }) => <>{isActive && indicator}<CarFront className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} /><span className={collapsed ? 'lg:hidden' : ''}>Taxi Bookings</span></>}
           </NavLink>
 
           {/* Deadlines — everyone */}

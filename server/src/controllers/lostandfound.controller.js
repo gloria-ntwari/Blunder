@@ -6,6 +6,7 @@ import { emitDataChanged } from '../socket/index.js';
 export const getLostFound = async (req, res, next) => {
   try {
     const { status, post_type, page = 1, limit = 20 } = req.query;
+    await query("DELETE FROM lost_found WHERE is_claimed = TRUE AND claimed_at <= NOW() - INTERVAL '10 days'");
     const offset = (page - 1) * limit;
     const conditions = [];
     const params = [];

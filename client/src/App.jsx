@@ -30,6 +30,7 @@ import ProfilePage from './pages/profile/ProfilePage.jsx';
 import GuildsPage from './pages/guilds/GuildsPage.jsx';
 import SchulhausPage from './pages/schulhaus/SchulhausPage.jsx';
 import LundesligaPage from './pages/lundesliga/LundesligaPage.jsx';
+import TaxiPage from './pages/taxi/TaxiPage.jsx';
 
 function AppInner() {
   const { initialize, isLoading, isAuthenticated, user } = useAuthStore();
@@ -78,6 +79,7 @@ function AppInner() {
           <Route path="/food-menu" element={<FoodMenuPage />} />
           <Route path="/announcements" element={<AnnouncementsPage />} />
           <Route path="/lost-found" element={<LostFoundPage />} />
+          <Route path="/taxi" element={<TaxiPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/deadlines" element={<DeadlinesPage />} />
           <Route path="/lundesliga" element={['student', 'student_leader', 'sv_committee', 'committee', 'mentor', 'teacher', 'super_admin'].includes(user?.role) ? <LundesligaPage /> : <Navigate to="/dashboard" replace />} />
